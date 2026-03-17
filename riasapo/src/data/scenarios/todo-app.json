@@ -1,0 +1,146 @@
+{
+  "id": "todo-app",
+  "title": "Todoアプリを作ろう",
+  "description": "シンプルなTodoアプリを作りながら、プログラミングの基礎概念を学びます。変数、配列、関数、条件分岐、ループ、イベント処理、状態管理の7つの概念を段階的に習得できます。",
+  "nodes": [
+    {
+      "id": "todo-app-root",
+      "title": "Todoアプリ",
+      "defaultSubtitle": "タスクの追加・完了・削除ができるアプリを作ろう",
+      "dependsOn": [],
+      "nodeType": "app"
+    },
+    {
+      "id": "feat-add",
+      "title": "タスクを追加する",
+      "defaultSubtitle": "入力欄にタスク名を入力して、リストに追加する機能",
+      "dependsOn": ["variable", "array", "function"],
+      "nodeType": "feature"
+    },
+    {
+      "id": "feat-delete",
+      "title": "タスクを削除する",
+      "defaultSubtitle": "不要になったタスクをリストから取り除く機能",
+      "dependsOn": ["array", "function"],
+      "nodeType": "feature"
+    },
+    {
+      "id": "feat-toggle",
+      "title": "完了/未完了を切り替える",
+      "defaultSubtitle": "タスクの完了状態をチェックボックスで切り替える機能",
+      "dependsOn": ["conditional", "state-management"],
+      "nodeType": "feature"
+    },
+    {
+      "id": "feat-display",
+      "title": "タスク一覧を表示する",
+      "defaultSubtitle": "登録されたタスクを画面にリスト表示する機能",
+      "dependsOn": ["loop", "array"],
+      "nodeType": "feature"
+    },
+    {
+      "id": "feat-interact",
+      "title": "ボタンで操作する",
+      "defaultSubtitle": "追加・削除ボタンのクリックでアプリを操作する機能",
+      "dependsOn": ["event-handling", "function"],
+      "nodeType": "feature"
+    },
+    {
+      "id": "variable",
+      "title": "変数とデータ型",
+      "defaultSubtitle": "データを名前をつけて保存する方法を学ぼう",
+      "dependsOn": []
+    },
+    {
+      "id": "array",
+      "title": "配列・リスト",
+      "defaultSubtitle": "複数のデータをまとめて管理する方法を学ぼう",
+      "dependsOn": ["variable"]
+    },
+    {
+      "id": "function",
+      "title": "関数定義",
+      "defaultSubtitle": "処理をまとめて再利用できるようにしよう",
+      "dependsOn": ["variable"]
+    },
+    {
+      "id": "conditional",
+      "title": "条件分岐",
+      "defaultSubtitle": "条件によって処理を分ける方法を学ぼう",
+      "dependsOn": ["function"]
+    },
+    {
+      "id": "loop",
+      "title": "ループ処理",
+      "defaultSubtitle": "繰り返し処理で効率的にデータを扱おう",
+      "dependsOn": ["array", "function"]
+    },
+    {
+      "id": "event-handling",
+      "title": "イベント処理",
+      "defaultSubtitle": "ユーザーの操作に反応するプログラムを作ろう",
+      "dependsOn": ["function"]
+    },
+    {
+      "id": "state-management",
+      "title": "状態管理",
+      "defaultSubtitle": "アプリのデータを正しく管理・更新する方法を学ぼう",
+      "dependsOn": ["array", "event-handling"]
+    }
+  ],
+  "edges": [
+    { "source": "todo-app-root", "target": "feat-add" },
+    { "source": "todo-app-root", "target": "feat-delete" },
+    { "source": "todo-app-root", "target": "feat-toggle" },
+    { "source": "todo-app-root", "target": "feat-display" },
+    { "source": "todo-app-root", "target": "feat-interact" },
+    { "source": "feat-add", "target": "variable" },
+    { "source": "feat-add", "target": "array" },
+    { "source": "feat-add", "target": "function" },
+    { "source": "feat-delete", "target": "array" },
+    { "source": "feat-delete", "target": "function" },
+    { "source": "feat-toggle", "target": "conditional" },
+    { "source": "feat-toggle", "target": "state-management" },
+    { "source": "feat-display", "target": "loop" },
+    { "source": "feat-display", "target": "array" },
+    { "source": "feat-interact", "target": "event-handling" },
+    { "source": "feat-interact", "target": "function" }
+  ],
+  "fallbackMappings": [
+    {
+      "nodeId": "variable",
+      "codeExample": "# 変数の定義と使い方\ntask_name = \"買い物に行く\"\nis_done = False\npriority = 3\n\nprint(f\"タスク: {task_name}\")\nprint(f\"完了: {is_done}\")\nprint(f\"優先度: {priority}\")",
+      "explanation": "変数はデータに名前をつけて保存する仕組みです。Todoアプリでは、タスク名（文字列）、完了状態（真偽値）、優先度（数値）などを変数に格納します。"
+    },
+    {
+      "nodeId": "array",
+      "codeExample": "# Todoリストを配列で管理\ntodos = [\"買い物に行く\", \"レポートを書く\", \"部屋を掃除する\"]\n\ntodos.append(\"本を読む\")\ntodos.remove(\"レポートを書く\")\n\nprint(f\"残りのタスク: {len(todos)}件\")",
+      "explanation": "配列（リスト）は複数のデータをまとめて管理するデータ構造です。Todoアプリでは、タスクの一覧をリストとして保持し、追加・削除を行います。"
+    },
+    {
+      "nodeId": "function",
+      "codeExample": "# Todoの追加関数\ndef add_todo(todos, task_name):\n    new_todo = {\"name\": task_name, \"done\": False}\n    return todos + [new_todo]\n\ndef complete_todo(todos, index):\n    updated = todos.copy()\n    updated[index] = {**updated[index], \"done\": True}\n    return updated\n\nmy_todos = []\nmy_todos = add_todo(my_todos, \"買い物に行く\")\nmy_todos = complete_todo(my_todos, 0)",
+      "explanation": "関数は処理をまとめて名前をつけ、何度でも呼び出せるようにする仕組みです。Todoアプリでは「追加」「完了」「削除」などの操作を関数として定義します。"
+    },
+    {
+      "nodeId": "conditional",
+      "codeExample": "# 条件分岐でTodoの状態を判定\ndef get_todo_status(todo):\n    if todo[\"done\"]:\n        return \"完了\"\n    elif todo.get(\"priority\", 0) >= 4:\n        return \"緊急\"\n    else:\n        return \"未完了\"\n\ndef filter_todos(todos, show_done):\n    if show_done:\n        return todos\n    else:\n        return [t for t in todos if not t[\"done\"]]",
+      "explanation": "条件分岐は、条件に応じて異なる処理を実行する仕組みです。Todoアプリでは、タスクの完了・未完了の判定や、フィルタリング機能で使います。"
+    },
+    {
+      "nodeId": "loop",
+      "codeExample": "# 全Todoを表示する\ndef display_todos(todos):\n    for i, todo in enumerate(todos):\n        status = \"[x]\" if todo[\"done\"] else \"[ ]\"\n        print(f\"{i + 1}. {status} {todo['name']}\")\n\ndef count_done(todos):\n    count = 0\n    for todo in todos:\n        if todo[\"done\"]:\n            count += 1\n    return count",
+      "explanation": "ループは同じ処理を繰り返し実行する仕組みです。Todoアプリでは、タスク一覧の表示や、条件に合うタスクの検索・集計に使います。"
+    },
+    {
+      "nodeId": "event-handling",
+      "codeExample": "# イベント処理の概念（CLI版）\ndef handle_command(command, todos):\n    parts = command.split(\" \", 1)\n    action = parts[0]\n    if action == \"add\":\n        return add_todo(todos, parts[1])\n    elif action == \"done\":\n        return complete_todo(todos, int(parts[1]) - 1)\n    elif action == \"list\":\n        display_todos(todos)\n        return todos\n    else:\n        print(\"不明なコマンドです\")\n        return todos",
+      "explanation": "イベント処理は、ユーザーの操作（クリック、入力など）に反応して処理を実行する仕組みです。Todoアプリでは、ボタンのクリックや入力の確定に対応する処理を記述します。"
+    },
+    {
+      "nodeId": "state-management",
+      "codeExample": "# 状態管理の概念\nclass TodoApp:\n    def __init__(self):\n        self._todos = []\n\n    def add(self, task_name):\n        self._todos = [*self._todos, {\"name\": task_name, \"done\": False}]\n        self._render()\n\n    def toggle(self, index):\n        todo = self._todos[index]\n        updated = {**todo, \"done\": not todo[\"done\"]}\n        self._todos = [updated if i == index else t for i, t in enumerate(self._todos)]\n        self._render()\n\n    def _render(self):\n        for i, t in enumerate(self._todos):\n            s = \"[x]\" if t[\"done\"] else \"[ ]\"\n            print(f\"{i+1}. {s} {t['name']}\")",
+      "explanation": "状態管理は、アプリ全体のデータ（状態）を一元的に管理し、状態の変化に応じてUIを更新する仕組みです。"
+    }
+  ]
+}
