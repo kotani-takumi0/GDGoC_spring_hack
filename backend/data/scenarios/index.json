@@ -1,0 +1,26 @@
+[
+  {
+    "id": "todo-app",
+    "title": "Todoアプリを作ろう",
+    "description": "シンプルなTodoアプリを作りながら、プログラミングの基礎概念を学びます。",
+    "available": true
+  },
+  {
+    "id": "calculator",
+    "title": "電卓アプリを作ろう",
+    "description": "四則演算ができる電卓アプリで、数値処理と関数の組み合わせを学びます。",
+    "available": false
+  },
+  {
+    "id": "weather-app",
+    "title": "天気予報アプリを作ろう",
+    "description": "APIからデータを取得して表示する天気予報アプリで、非同期処理を学びます。",
+    "available": false
+  },
+  {
+    "id": "chat-app",
+    "title": "チャットアプリを作ろう",
+    "description": "リアルタイム通信のチャットアプリで、WebSocketとデータ同期を学びます。",
+    "available": false
+  }
+]

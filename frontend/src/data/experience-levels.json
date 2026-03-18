@@ -1,0 +1,17 @@
+[
+  {
+    "id": "complete-beginner",
+    "label": "プログラミング完全初心者",
+    "description": "プログラミングの経験がまったくない方。基礎の基礎から丁寧に学べます。"
+  },
+  {
+    "id": "python-experienced",
+    "label": "Python経験者",
+    "description": "Pythonの基本的な文法を理解している方。Pythonとの比較を交えながら学べます。"
+  },
+  {
+    "id": "other-language-experienced",
+    "label": "他言語の経験者",
+    "description": "Python以外のプログラミング言語の経験がある方。概念の対応関係を確認しながら進められます。"
+  }
+]
