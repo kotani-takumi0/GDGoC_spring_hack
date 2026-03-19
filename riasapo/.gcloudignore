@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.local
+.env.production.local
+.git
+.gitignore
+.dockerignore
+README.md
+.kiro
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
