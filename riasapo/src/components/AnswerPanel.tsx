@@ -104,6 +104,18 @@ export default function AnswerPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const addedQuestionsRef = useRef<Set<string>>(new Set());
+  const prevNodeTitleRef = useRef<string>("");
+
+  // 概念が変わったらチャット履歴をリセット
+  useEffect(() => {
+    if (nodeTitle && nodeTitle !== prevNodeTitleRef.current) {
+      if (prevNodeTitleRef.current !== "") {
+        setMessages([]);
+        addedQuestionsRef.current.clear();
+      }
+      prevNodeTitleRef.current = nodeTitle;
+    }
+  }, [nodeTitle]);
 
   // 質問テキストが更新されたらチャットに追加（重複防止）
   useEffect(() => {
