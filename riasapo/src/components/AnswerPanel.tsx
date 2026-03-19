@@ -276,7 +276,7 @@ export default function AnswerPanel({
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="自分の言葉で説明してみよう..."
+            placeholder={isLoadingQuestion ? "先輩が次の質問を考え中..." : "自分の言葉で説明してみよう..."}
             rows={2}
             disabled={isEvaluating || isLoadingQuestion}
             className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-gray-500 resize-none focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-colors disabled:opacity-40"
