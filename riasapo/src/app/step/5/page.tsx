@@ -42,6 +42,32 @@ interface GeneratedFile {
 // AI質問生成
 // =============================================================================
 
+/**
+ * 質問テキストからバッククォート内のコードスニペットを抽出する
+ */
+function extractCodeReferences(question: string): readonly string[] {
+  const matches = question.match(/`([^`]+)`/g);
+  if (!matches) return [];
+  return matches.map((m) => m.slice(1, -1)).filter((s) => s.length > 3);
+}
+
+/**
+ * コード内でスニペットが出現する行番号を特定する
+ */
+function findHighlightLines(code: string, snippets: readonly string[]): Set<number> {
+  const lines = code.split('\n');
+  const result = new Set<number>();
+
+  for (const snippet of snippets) {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(snippet)) {
+        result.add(i + 1); // 1-indexed
+      }
+    }
+  }
+  return result;
+}
+
 async function fetchQuestion(
   conceptTitle: string,
   code: string,
@@ -158,6 +184,7 @@ function Step5Content() {
   } | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const [highlightLines, setHighlightLines] = useState<Set<number>>(new Set());
 
   const answeredCount = useMemo(
     () => Object.values(nodeStatuses).filter((s) => s !== "default").length,
@@ -180,6 +207,22 @@ function Step5Content() {
     fetchQuestion(currentNode.title, allCode, level).then((q) => {
       setCurrentQuestion(q);
       setIsLoadingQuestion(false);
+
+      // 質問内のコード参照から該当行をハイライト
+      const activeFile = generatedFiles[activeFileIndex];
+      if (activeFile) {
+        const refs = extractCodeReferences(q);
+        // 全ファイルから検索して、該当ファイルに自動切替
+        for (let fi = 0; fi < generatedFiles.length; fi++) {
+          const lines = findHighlightLines(generatedFiles[fi].code, refs);
+          if (lines.size > 0) {
+            setActiveFileIndex(fi);
+            setHighlightLines(lines);
+            return;
+          }
+        }
+        setHighlightLines(new Set());
+      }
     });
   }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
@@ -351,9 +394,21 @@ function Step5Content() {
                     language={generatedFiles[activeFileIndex].filename.endsWith('.html') ? 'html' : 'typescript'}
                     style={oneDark}
                     showLineNumbers
+                    wrapLines
+                    lineProps={(lineNumber: number) => {
+                      const isHighlighted = highlightLines.has(lineNumber);
+                      return {
+                        style: {
+                          backgroundColor: isHighlighted ? 'rgba(99, 102, 241, 0.15)' : undefined,
+                          borderLeft: isHighlighted ? '3px solid #6366f1' : '3px solid transparent',
+                          display: 'block',
+                          paddingLeft: isHighlighted ? '8px' : '11px',
+                        },
+                      };
+                    }}
                     customStyle={{
                       margin: 0,
-                      padding: '16px',
+                      padding: '16px 0',
                       background: 'transparent',
                       fontSize: '12px',
                       lineHeight: '1.6',
