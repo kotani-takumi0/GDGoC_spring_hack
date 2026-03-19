@@ -281,6 +281,48 @@ function Step5Content() {
     }
   }, [currentNode, currentNodeIndex, nodes.length]);
 
+  // ドキュメント生成
+  const [isGeneratingDoc, setIsGeneratingDoc] = useState(false);
+  const [docUrl, setDocUrl] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const handleGenerateDoc = useCallback(async () => {
+    setIsGeneratingDoc(true);
+    setDocError(null);
+
+    const conversations = nodes.map((node) => ({
+      conceptTitle: node.title,
+      messages: chatHistoryRef.current.get(node.id) ?? [],
+    })).filter((c) => c.messages.length > 0);
+
+    const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
+
+    try {
+      const res = await fetch('/api/generate-doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenarioTitle: scenario.title,
+          experienceLevel: level,
+          conversations,
+          code: allCode,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? 'ドキュメント生成に失敗しました');
+      }
+
+      const data = await res.json();
+      setDocUrl(data.docUrl);
+    } catch (e) {
+      setDocError(e instanceof Error ? e.message : 'エラーが発生しました');
+    } finally {
+      setIsGeneratingDoc(false);
+    }
+  }, [nodes, generatedFiles, scenario.title, level]);
+
   const percentage = nodes.length > 0 ? (discussedCount / nodes.length) * 100 : 0;
 
   return (
@@ -353,7 +395,7 @@ function Step5Content() {
         </aside>
 
         {isAllCompleted ? (
-          <main className="flex-1 flex flex-col items-center justify-center gap-5 text-center px-4 relative z-10">
+          <main className="flex-1 flex flex-col items-center justify-center gap-6 text-center px-4 relative z-10">
             <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.3)] border border-emerald-500/30 text-3xl">
               🎉
             </div>
@@ -362,6 +404,45 @@ function Step5Content() {
               全ての概念について対話が完了しました。<br />
               左のリストをクリックすると、過去の対話を振り返れるよ。
             </p>
+
+            {/* ドキュメント生成 */}
+            <div className="mt-4 w-full max-w-md">
+              {docUrl ? (
+                <a
+                  href={docUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold text-sm hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all text-center"
+                >
+                  📄 Google Docsで学習ノートを開く
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGenerateDoc}
+                  disabled={isGeneratingDoc}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-sm hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isGeneratingDoc ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      あなた専用の学習ノートを作成中...
+                    </span>
+                  ) : (
+                    "📝 対話内容から学習ノートを生成する"
+                  )}
+                </button>
+              )}
+              {docError && (
+                <p className="mt-2 text-xs text-red-400">{docError}</p>
+              )}
+              <p className="mt-2 text-[11px] text-gray-500">
+                対話の内容をもとに、あなた専用の技術ドキュメントをGoogle Docsに生成します
+              </p>
+            </div>
           </main>
         ) : (
           <>
