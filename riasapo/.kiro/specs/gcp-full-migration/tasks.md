@@ -78,7 +78,7 @@
   - Firestore書き込み失敗時はSessionStorageの値を維持し、ユーザーにエラーを通知する
   - _Requirements: 5.2, 5.3, 5.4, 5.6_
 
-- [ ] 5.3 Firestoreセキュリティルールを作成しデプロイする
+- [x] 5.3 Firestoreセキュリティルールを作成しデプロイする
   - `firestore.rules`ファイルにUID一致チェックのルールを記述する
   - `qa_logs`は匿名ユーザーも読み書き可能、`users`/`sessions`/`evaluations`/`notebooks`はUID一致時のみ許可する
   - `stumble_stats`は全ユーザー読み取り可能とする
