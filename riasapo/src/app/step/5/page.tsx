@@ -8,6 +8,7 @@ import StepIndicator from "@/components/StepIndicator";
 import AnswerPanel from "@/components/AnswerPanel";
 import { useAuth } from "@/components/AuthProvider";
 import scenarioData from "@/data/scenarios/todo-app.json";
+import { DEMO_QUESTIONS } from "@/data/demo-questions";
 import type {
   ScenarioDefinition,
   ExperienceLevel,
@@ -157,6 +158,7 @@ function Step5Content() {
   const searchParams = useSearchParams();
   const { state: authState } = useAuth();
   const level = (searchParams.get("level") ?? "complete-beginner") as ExperienceLevel;
+  const mode = searchParams.get("mode") ?? "demo";
 
   const scenario = scenarioData as unknown as ScenarioDefinition;
   const nodes = scenario.nodes.filter((n) => n.nodeType !== "feature" && n.nodeType !== "app");
@@ -210,13 +212,28 @@ function Step5Content() {
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
 
-  // 概念が変わるたびに1つずつ質問を生成
+  // 概念が変わるたびに質問を準備
   const generatedConceptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!currentNode || isAllCompleted || generatedFiles.length === 0) return;
+    if (!currentNode || isAllCompleted) return;
     if (generatedConceptsRef.current.has(currentNode.id)) return;
     generatedConceptsRef.current.add(currentNode.id);
 
+    // デモモード: 事前定義の質問を使用（API呼び出しなし）
+    if (mode === "demo") {
+      const demoQ = DEMO_QUESTIONS.find((q) => q.conceptId === currentNode.id);
+      if (demoQ) {
+        setPreparedQuestions((prev) => [...prev, {
+          conceptId: demoQ.conceptId,
+          question: demoQ.question,
+          modelAnswer: demoQ.modelAnswer,
+        }]);
+      }
+      return;
+    }
+
+    // AIモード: Geminiで質問を生成
+    if (generatedFiles.length === 0) return;
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
 
     setIsLoadingQuestions(true);
@@ -226,7 +243,7 @@ function Step5Content() {
       }
       setIsLoadingQuestions(false);
     });
-  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
+  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted, mode]);
 
   // 現在の概念に対応する質問を取得
   const currentPrepared = currentNode
