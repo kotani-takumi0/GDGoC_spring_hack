@@ -208,19 +208,22 @@ function Step5Content() {
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
 
-  // 初回: 全概念の質問＋模範解答を一括生成
+  // 概念が変わるたびに1つずつ質問を生成
   useEffect(() => {
-    if (generatedFiles.length === 0 || nodes.length === 0 || preparedQuestions.length > 0) return;
+    if (!currentNode || isAllCompleted || generatedFiles.length === 0) return;
+    // 既に生成済みならスキップ
+    if (preparedQuestions.some((q) => q.conceptId === currentNode.id)) return;
 
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
-    const conceptInputs = nodes.map((n) => ({ id: n.id, title: n.title }));
 
     setIsLoadingQuestions(true);
-    fetchAllQuestions(conceptInputs, allCode, level).then((qs) => {
-      setPreparedQuestions(qs);
+    fetchAllQuestions([{ id: currentNode.id, title: currentNode.title }], allCode, level).then((qs) => {
+      if (qs.length > 0) {
+        setPreparedQuestions((prev) => [...prev, ...qs]);
+      }
       setIsLoadingQuestions(false);
     });
-  }, [generatedFiles, nodes, level, preparedQuestions.length]);
+  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted, preparedQuestions]);
 
   // 現在の概念に対応する質問を取得
   const currentPrepared = currentNode
