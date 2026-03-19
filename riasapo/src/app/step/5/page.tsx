@@ -140,7 +140,13 @@ function Step5Content() {
   const isAllCompleted = answeredCount === nodes.length;
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
-  const currentQuestion = currentNode ? getQuestionForNode(currentSnippet || currentNode.title, currentNodeIndex) : "";
+  // コードスニペットがない場合は概念名ベースの質問にフォールバック
+  const hasCode = currentSnippet && currentSnippet !== currentNode?.title && currentSnippet.length > 5;
+  const currentQuestion = currentNode
+    ? hasCode
+      ? getQuestionForNode(currentSnippet, currentNodeIndex)
+      : `「${currentNode.title}」について、自分の言葉で説明してみて。\nどういう場面で使うか、なんで必要なのかも含めて。`
+    : "";
 
   const handleSubmit = useCallback(
     async (answer: string) => {
