@@ -20,7 +20,7 @@
 ## Phase 2: AI基盤切替
 
 - [ ] 2. Vertex AI SDK移行
-- [ ] 2.1 `@google/genai` SDKをインストールし、Geminiクライアントの内部実装をVertex AI SDKに差し替える
+- [x] 2.1 `@google/genai` SDKをインストールし、Geminiクライアントの内部実装をVertex AI SDKに差し替える
   - `@google/genai`パッケージをインストールする
   - 現在のREST直叩き実装を`GoogleGenAI({ vertexai: true })`ベースに書き換える
   - 既存の`GeminiClient`インターフェース（5メソッド）のシグネチャは変更しない

@@ -1,7 +1,8 @@
 // =============================================================================
-// Gemini API 共通クライアント - REST API直接呼び出し
+// Gemini API 共通クライアント - Vertex AI SDK (@google/genai)
 // =============================================================================
 
+import { GoogleGenAI } from '@google/genai';
 import type {
   ConceptNodeData,
   ExperienceLevel,
@@ -9,7 +10,7 @@ import type {
 } from '@/types';
 
 // =============================================================================
-// 型定義（後で src/types/index.ts に統合予定）
+// 型定義
 // =============================================================================
 
 /** Result型: 成功またはエラーを表す判別共用体 */
@@ -62,25 +63,43 @@ export interface EvaluationResult {
 // 定数
 // =============================================================================
 
-const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
+const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT ?? 'gdghackathon-7ff23';
+const GCP_LOCATION = process.env.GOOGLE_CLOUD_LOCATION ?? 'asia-northeast1';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 1000;
 
 // =============================================================================
-// ヘルパー関数
+// Vertex AI クライアント初期化
 // =============================================================================
 
-function getApiKey(): string {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) {
-    throw new Error(
-      'GEMINI_API_KEY が設定されていません。.env.local に GEMINI_API_KEY を設定してください。'
-    );
+function createGenAI(): GoogleGenAI {
+  // Cloud Run: ADC自動認証（vertexai: true）
+  // ローカル: gcloud auth application-default login で認証済み前提
+  // フォールバック: GEMINI_API_KEY があれば API key モードで動作
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    return new GoogleGenAI({ apiKey });
   }
-  return key;
+  return new GoogleGenAI({
+    vertexai: true,
+    project: GCP_PROJECT,
+    location: GCP_LOCATION,
+  });
 }
+
+let genaiInstance: GoogleGenAI | null = null;
+
+function getGenAI(): GoogleGenAI {
+  if (!genaiInstance) {
+    genaiInstance = createGenAI();
+  }
+  return genaiInstance;
+}
+
+// =============================================================================
+// ヘルパー関数
+// =============================================================================
 
 function createErrorResult<T>(
   message: string,
@@ -98,43 +117,19 @@ async function sleep(ms: number): Promise<void> {
 }
 
 // =============================================================================
-// Gemini API 共通リクエスト関数
+// Gemini API 共通リクエスト関数 (Vertex AI SDK版)
 // =============================================================================
 
 /**
- * Gemini API にリクエストを送信し、構造化 JSON レスポンスを取得する。
+ * Vertex AI Gemini API にリクエストを送信し、構造化 JSON レスポンスを取得する。
  * リトライ（指数バックオフ）とJSON parse失敗時の安全な処理を含む。
- *
- * @param prompt - プロンプト文字列
- * @param responseSchema - 期待するレスポンスのJSONスキーマ
- * @param retries - 残りリトライ回数（デフォルト: MAX_RETRIES）
  */
 async function callGeminiAPI<T>(
   prompt: string,
   responseSchema: object,
   retries: number = MAX_RETRIES
 ): Promise<Result<T, GeminiError>> {
-  let apiKey: string;
-  try {
-    apiKey = getApiKey();
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'APIキーの取得に失敗しました';
-    return createErrorResult<T>(message, 'API_KEY_MISSING');
-  }
-
-  const url = `${GEMINI_ENDPOINT}?key=${apiKey}`;
-
-  const requestBody = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema,
-    },
-  };
+  const ai = getGenAI();
 
   let lastError: GeminiError = { message: '不明なエラー', code: 'UNKNOWN' };
 
@@ -145,28 +140,18 @@ async function callGeminiAPI<T>(
     }
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        lastError = {
-          message: `Gemini API エラー (HTTP ${response.status}): ${errorBody}`,
-          code: `HTTP_${response.status}`,
-        };
-        continue;
-      }
+      const text = response.text;
 
-      const responseData = await response.json();
-
-      // レスポンスからテキストを抽出
-      const text =
-        responseData?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-
-      if (text === null) {
+      if (!text) {
         lastError = {
           message: 'Gemini API レスポンスにテキストが含まれていません',
           code: 'EMPTY_RESPONSE',
@@ -187,8 +172,8 @@ async function callGeminiAPI<T>(
       }
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : 'ネットワークエラーが発生しました';
-      lastError = { message, code: 'NETWORK_ERROR' };
+        e instanceof Error ? e.message : 'Vertex AI APIエラーが発生しました';
+      lastError = { message, code: 'VERTEX_AI_ERROR' };
       continue;
     }
   }
@@ -476,4 +461,4 @@ function createGeminiClient(): GeminiClient {
 export const geminiClient: GeminiClient = createGeminiClient();
 
 // テスト用にエクスポート
-export { callGeminiAPI, getApiKey };
+export { callGeminiAPI };
