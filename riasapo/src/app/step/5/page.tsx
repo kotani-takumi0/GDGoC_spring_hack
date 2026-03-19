@@ -243,7 +243,8 @@ function Step5Content() {
       }
       setIsLoadingQuestions(false);
     });
-  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted, mode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
   // 現在の概念に対応する質問を取得
   const currentPrepared = currentNode
@@ -399,7 +400,7 @@ function Step5Content() {
         ) : (
           <>
             {/* 中央: チャット */}
-            <main className="flex-1 flex flex-col overflow-hidden relative z-10 border-r border-white/10">
+            <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10 border-r border-white/10">
               <AnswerPanel
                 nodeTitle={currentNode?.title ?? ""}
                 codeSnippet={currentSnippet}
