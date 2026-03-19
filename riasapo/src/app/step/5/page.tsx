@@ -31,22 +31,26 @@ interface EvaluateResponse {
 }
 
 // =============================================================================
-// 先輩の質問バリエーション
+// 先輩の質問バリエーション（コードベース）
 // =============================================================================
 
-const QUESTION_TEMPLATES = [
-  (title: string) => `ねえ、「${title}」って何か説明できる？\n後輩に教えるつもりで話してみて。`,
-  (title: string) => `じゃあ聞くけど、「${title}」がなかったらどうなると思う？\nなんでこれが必要なのか、自分の言葉で。`,
-  (title: string) => `「${title}」のコード見たでしょ？\nこれが何やってるか、一言でまとめてみ。`,
-  (title: string) => `ちょっとテストね。「${title}」について、\n実際のアプリでどう使われてるか説明してみて。`,
-  (title: string) => `「${title}」の部分、ちゃんと理解できた？\n例えを使って説明してくれる？`,
-  (title: string) => `プログラミング初心者に「${title}」を教えるとしたら、\nどう説明する？`,
-  (title: string) => `「${title}」のコード、もし自分で書くならどうする？\n考え方を教えて。`,
+type QuestionTemplate = (snippet: string) => string;
+
+const QUESTION_TEMPLATES: readonly QuestionTemplate[] = [
+  (snippet) => `このコード見て。\n\n\`\`\`\n${snippet}\n\`\`\`\n\nこれ、なんでこう書く必要があるの？\n書かなかったらどうなるか含めて説明してみ。`,
+  (snippet) => `ちょっとこれ見て。\n\n\`\`\`\n${snippet}\n\`\`\`\n\nこの部分、後輩に「何してるんですか？」って聞かれたら\nなんて答える？`,
+  (snippet) => `じゃあ問題。\n\n\`\`\`\n${snippet}\n\`\`\`\n\nこのコード、もしバグってたら何が起きると思う？\nこの処理の役割を踏まえて答えて。`,
+  (snippet) => `このコード覚えてる？\n\n\`\`\`\n${snippet}\n\`\`\`\n\n実際のアプリ上でどういう動きになるか、\nユーザー目線で説明してみて。`,
+  (snippet) => `ここ大事なとこなんだけど。\n\n\`\`\`\n${snippet}\n\`\`\`\n\nプログラミング知らない友達に説明するとしたら、\n何に例える？`,
+  (snippet) => `これさ、\n\n\`\`\`\n${snippet}\n\`\`\`\n\n別の書き方でも同じことできると思う？\nなんでこの書き方なのか、考えを聞かせて。`,
+  (snippet) => `最後にこれ。\n\n\`\`\`\n${snippet}\n\`\`\`\n\nこの処理を消したら、アプリ全体にどう影響する？\n自分の言葉でどうぞ。`,
 ];
 
-function getQuestionForNode(title: string, index: number): string {
+function getQuestionForNode(snippet: string, index: number): string {
+  // コードが長すぎる場合は先頭部分だけ使う
+  const trimmed = snippet.length > 300 ? snippet.slice(0, 300) + '\n// ...' : snippet;
   const template = QUESTION_TEMPLATES[index % QUESTION_TEMPLATES.length];
-  return template(title);
+  return template(trimmed);
 }
 
 // =============================================================================
@@ -136,7 +140,7 @@ function Step5Content() {
   const isAllCompleted = answeredCount === nodes.length;
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
-  const currentQuestion = currentNode ? getQuestionForNode(currentNode.title, currentNodeIndex) : "";
+  const currentQuestion = currentNode ? getQuestionForNode(currentSnippet || currentNode.title, currentNodeIndex) : "";
 
   const handleSubmit = useCallback(
     async (answer: string) => {
