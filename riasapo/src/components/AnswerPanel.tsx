@@ -156,22 +156,6 @@ export default function AnswerPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* コードスニペット（コンパクト表示） */}
-      {codeSnippet && (
-        <div className="flex-shrink-0 mx-4 mt-3 mb-2">
-          <details className="group">
-            <summary className="text-[11px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1.5">
-              <span className="text-indigo-400">📝</span>
-              {nodeTitle} のコード
-              <span className="text-gray-600 group-open:rotate-90 transition-transform">▶</span>
-            </summary>
-            <pre className="mt-2 bg-black/60 border border-white/10 text-emerald-300 text-[11px] p-3 rounded-lg overflow-x-auto leading-relaxed max-h-32 custom-scrollbar">
-              {codeSnippet}
-            </pre>
-          </details>
-        </div>
-      )}
-
       {/* チャットエリア */}
       <div
         ref={scrollRef}
