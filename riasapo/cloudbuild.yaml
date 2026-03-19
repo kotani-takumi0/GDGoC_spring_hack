@@ -1,0 +1,20 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyA05d00SlwfPuY6ffFHxr48XVbocnMs_LU'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=gdghackathon-7ff23.firebaseapp.com'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_PROJECT_ID=gdghackathon-7ff23'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=gdghackathon-7ff23.firebasestorage.app'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=928205117994'
+      - '--build-arg=NEXT_PUBLIC_FIREBASE_APP_ID=1:928205117994:web:04bbdc31d1558914e18153'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/gdghackathon-7ff23/riasapo/riasapo:latest'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'asia-northeast1-docker.pkg.dev/gdghackathon-7ff23/riasapo/riasapo:latest']
+images:
+  - 'asia-northeast1-docker.pkg.dev/gdghackathon-7ff23/riasapo/riasapo:latest'
+timeout: '1200s'
+options:
+  machineType: 'E2_HIGHCPU_8'
