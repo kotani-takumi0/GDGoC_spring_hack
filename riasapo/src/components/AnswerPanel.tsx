@@ -5,6 +5,39 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 
 // =============================================================================
+// テキスト内のコードブロックをパースして表示
+// =============================================================================
+
+function renderMessageText(text: string) {
+  // ```...``` で囲まれた部分をコードブロックとして表示
+  const parts = text.split(/(```[\s\S]*?```)/g);
+
+  return parts.map((part, i) => {
+    if (part.startsWith("```") && part.endsWith("```")) {
+      // コードブロック: ``` と言語名を除去
+      const code = part
+        .replace(/^```\w*\n?/, "")
+        .replace(/\n?```$/, "");
+      return (
+        <pre
+          key={i}
+          className="my-2 bg-black/60 border border-white/10 text-emerald-300 text-[11px] p-3 rounded-lg overflow-x-auto leading-relaxed"
+        >
+          {code}
+        </pre>
+      );
+    }
+    // 通常テキスト
+    if (part.trim() === "") return null;
+    return (
+      <span key={i} className="whitespace-pre-wrap">
+        {part}
+      </span>
+    );
+  });
+}
+
+// =============================================================================
 // 型定義
 // =============================================================================
 
@@ -188,9 +221,9 @@ export default function AnswerPanel({
                     }`}
                   >
                     <p className="text-[11px] font-bold text-indigo-400 mb-0.5">先輩</p>
-                    <p className="text-[13px] text-gray-200 leading-relaxed whitespace-pre-wrap">
-                      {msg.text}
-                    </p>
+                    <div className="text-[13px] text-gray-200 leading-relaxed">
+                      {renderMessageText(msg.text)}
+                    </div>
                   </div>
                 </div>
               ) : (
