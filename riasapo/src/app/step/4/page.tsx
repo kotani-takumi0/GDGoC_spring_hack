@@ -6,6 +6,7 @@ import StepIndicator from "@/components/StepIndicator";
 import CodePanel from "@/components/CodePanel";
 import RoadmapGraph from "@/components/RoadmapGraph";
 import PreviewSandbox from "@/components/PreviewSandbox";
+import { useSessionSync } from "@/components/SessionSyncProvider";
 import type { HighlightRange } from "@/components/CodePanel";
 import type { ConceptNodeData, ConceptEdge, ScenarioDefinition } from "@/types";
 
@@ -105,7 +106,7 @@ function loadStoredScenario(): ScenarioDefinition | null {
 /**
  * マッピングデータを sessionStorage に保存する（Step 5で使用）。
  */
-function saveMappings(mappings: readonly MappingItem[]): void {
+function saveMappingsToStorage(mappings: readonly MappingItem[]): void {
   try {
     sessionStorage.setItem("riasapo-mappings", JSON.stringify(mappings));
   } catch {
@@ -281,6 +282,7 @@ function SelectedNodeSummary({
 function Step4Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { saveToSession } = useSessionSync();
 
   const scenarioId = searchParams.get("scenario") ?? "";
   const level = searchParams.get("level") ?? "";
@@ -448,7 +450,8 @@ function Step4Content() {
 
         const data = (await response.json()) as { mappings: MappingItem[] };
         setMappings(data.mappings);
-        saveMappings(data.mappings);
+        saveMappingsToStorage(data.mappings);
+        saveToSession("riasapo-mappings", data.mappings);
       } catch (e) {
         setError(
           e instanceof Error

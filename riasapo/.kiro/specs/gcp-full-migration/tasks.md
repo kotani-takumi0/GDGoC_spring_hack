@@ -84,7 +84,7 @@
   - `stumble_stats`は全ユーザー読み取り可能とする
   - _Requirements: 5.5_
 
-- [ ] 5.4 既存のStep 1〜5ページでSessionSyncProviderを通じたデータ保存・復元を接続する
+- [x] 5.4 既存のStep 1〜5ページでSessionSyncProviderを通じたデータ保存・復元を接続する
   - 各Stepページの`sessionStorage.setItem`/`getItem`呼び出しをSessionSyncProvider経由に置き換える
   - Step間のデータ受け渡し（generated-code, scenario, mappings）がFirestore経由でも正しく機能することを確認する
   - ログインユーザーがブラウザを閉じて再度開いた場合に、前回の学習状態から継続できることを確認する
