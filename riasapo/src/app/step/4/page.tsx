@@ -6,6 +6,7 @@ import StepIndicator from "@/components/StepIndicator";
 import CodePanel from "@/components/CodePanel";
 import RoadmapGraph from "@/components/RoadmapGraph";
 import PreviewSandbox from "@/components/PreviewSandbox";
+import CodeExecutionPanel from "@/components/CodeExecutionPanel";
 import { useSessionSync } from "@/components/SessionSyncProvider";
 import type { HighlightRange } from "@/components/CodePanel";
 import type { ConceptNodeData, ConceptEdge, ScenarioDefinition } from "@/types";
@@ -271,6 +272,17 @@ function SelectedNodeSummary({
           </p>
         )}
       </div>
+
+      {/* Code Execution: conceptノードのみ表示 */}
+      {node.nodeType !== 'app' && node.nodeType !== 'feature' && mapping?.codeSnippet && (
+        <div className="mt-4 border-t border-white/5 pt-3">
+          <CodeExecutionPanel
+            conceptTitle={node.title}
+            codeSnippet={mapping.codeSnippet}
+            explanation={mapping.explanation ?? node.subtitle}
+          />
+        </div>
+      )}
     </div>
   );
 }
