@@ -158,6 +158,9 @@ async function callGeminiAPI<T>(
         config: {
           responseMimeType: 'application/json',
           responseSchema,
+          thinkingConfig: {
+            thinkingBudget: 1024,
+          },
         },
       });
 
