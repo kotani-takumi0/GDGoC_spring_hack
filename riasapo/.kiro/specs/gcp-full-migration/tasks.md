@@ -93,7 +93,7 @@
 ## Phase 4: ベクトル検索機能
 
 - [ ] 6. Q&Aベクトル化と類似検索
-- [ ] 6.1 Gemini Embedding 2を使ったテキストベクトル化サービスを実装する
+- [x] 6.1 Gemini Embedding 2を使ったテキストベクトル化サービスを実装する
   - `@google/genai`の`embedContent`メソッドで`gemini-embedding-001`モデルを使用する
   - 検索クエリ用（RETRIEVAL_QUERY）とドキュメント保存用（RETRIEVAL_DOCUMENT）のタスクタイプを使い分ける
   - 出力次元数を768に設定する（Firestoreベクトル検索の制限に適合）
