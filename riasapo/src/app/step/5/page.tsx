@@ -167,7 +167,7 @@ function Step5Content() {
           body: JSON.stringify({
             nodeId: currentNode.id,
             nodeTitle: currentNode.title,
-            codeSnippet: currentSnippet,
+            codeSnippet: currentSnippet || `// ${currentNode.title}の例`,
             userAnswer: answer,
             experienceLevel: level,
           }),
