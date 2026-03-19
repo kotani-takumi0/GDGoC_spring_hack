@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { geminiClient } from "@/lib/gemini-client";
-import { embedDocument } from "@/lib/embedding-service";
+import { geminiClient, callWithGrounding } from "@/lib/gemini-client";
+import type { Citation } from "@/lib/gemini-client";
+import { embedDocument, embedQuery } from "@/lib/embedding-service";
 import { saveQALog, findSimilarQA } from "@/lib/firestore-service";
-import { embedQuery } from "@/lib/embedding-service";
 import type { ConceptNodeData, ExperienceLevel } from "@/types";
 
 interface AskRequest {
@@ -82,17 +82,25 @@ ${question}
     status: "default",
   };
 
-  // Gemini APIでテキスト応答を取得
-  const result = await geminiClient.askAboutConcept(node, question, prompt);
+  // Grounding付きで回答を取得（失敗時は通常回答にフォールバック）
+  let answer: string;
+  let citations: readonly Citation[] = [];
 
-  if (!result.success) {
-    return NextResponse.json(
-      { error: `AI応答の生成に失敗しました: ${result.error.message}` },
-      { status: 502 }
-    );
+  const groundedResult = await callWithGrounding(prompt);
+  if (groundedResult.success) {
+    answer = groundedResult.data.answer;
+    citations = groundedResult.data.citations;
+  } else {
+    // Groundingが失敗した場合は通常のGemini応答にフォールバック
+    const fallbackResult = await geminiClient.askAboutConcept(node, question, prompt);
+    if (!fallbackResult.success) {
+      return NextResponse.json(
+        { error: `AI応答の生成に失敗しました: ${fallbackResult.error.message}` },
+        { status: 502 }
+      );
+    }
+    answer = fallbackResult.data;
   }
-
-  const answer = result.data;
 
   // Q&Aログをベクトル付きでFirestoreに保存（非同期・失敗しても回答は返す）
   try {
@@ -114,6 +122,7 @@ ${question}
 
   return NextResponse.json({
     answer,
+    citations: citations.length > 0 ? citations : undefined,
     similarQAs: similarQAs.length > 0 ? similarQAs : undefined,
   });
 }

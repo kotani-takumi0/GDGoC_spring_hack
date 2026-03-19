@@ -122,14 +122,14 @@
 ## Phase 5: 高度AI機能
 
 - [ ] 7. Vertex AI Grounding（Google検索連携）
-- [ ] 7.1 (P) askAboutConcept APIにGrounding with Google Search機能を追加する
+- [x] 7.1 (P) askAboutConcept APIにGrounding with Google Search機能を追加する
   - GenAIクライアントの`askAboutConcept`呼び出し時に`tools: [{ googleSearch: {} }]`を追加する
   - レスポンスから`groundingMetadata`（ソースURL、テキスト対応、信頼度スコア）を抽出する
   - 信頼度スコアが低い場合はGroundingなしの通常回答にフォールバックする
   - 戻り値を`GroundedAnswer`型（answer + citations）に拡張する
   - _Requirements: 10.1, 10.3, 10.4_
 
-- [ ] 7.2 (P) ConceptQAの回答表示に引用元URLリンクを表示するUIを追加する
+- [x] 7.2 (P) ConceptQAの回答表示に引用元URLリンクを表示するUIを追加する
   - 回答テキストの後に「参考リンク」セクションを表示する
   - 各引用にはタイトル・URL・関連テキスト抜粋を表示する
   - Google Search利用時のToS要件に準拠したSearch Entry Pointウィジェットを表示する

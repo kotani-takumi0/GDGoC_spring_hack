@@ -59,6 +59,18 @@ export interface EvaluationResult {
   readonly status: 'green' | 'yellow' | 'red';
 }
 
+/** 引用情報 */
+export interface Citation {
+  readonly title: string;
+  readonly url: string;
+}
+
+/** Grounding付き回答 */
+export interface GroundedAnswer {
+  readonly answer: string;
+  readonly citations: readonly Citation[];
+}
+
 // =============================================================================
 // 定数
 // =============================================================================
@@ -459,6 +471,54 @@ function createGeminiClient(): GeminiClient {
 
 /** シングルトンの GeminiClient インスタンス */
 export const geminiClient: GeminiClient = createGeminiClient();
+
+// =============================================================================
+// Grounding付きAPI呼び出し（askAboutConcept拡張用）
+// =============================================================================
+
+/**
+ * Google検索Grounding付きでGemini APIを呼び出す。
+ * 引用情報（ソースURL）を含む回答を返す。
+ */
+export async function callWithGrounding(
+  prompt: string
+): Promise<Result<GroundedAnswer, GeminiError>> {
+  const ai = getGenAI();
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const text = response.text;
+    if (!text) {
+      return createErrorResult('Grounding付き回答が空です', 'EMPTY_RESPONSE');
+    }
+
+    // Grounding メタデータから引用を抽出
+    const citations: Citation[] = [];
+    const candidate = response.candidates?.[0];
+    const metadata = candidate?.groundingMetadata;
+
+    if (metadata?.groundingChunks) {
+      for (const chunk of metadata.groundingChunks) {
+        const web = chunk.web;
+        if (web?.uri && web?.title) {
+          citations.push({ title: web.title, url: web.uri });
+        }
+      }
+    }
+
+    return createSuccessResult({ answer: text, citations });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Grounding APIエラー';
+    return createErrorResult(message, 'GROUNDING_ERROR');
+  }
+}
 
 // テスト用にエクスポート
 export { callGeminiAPI };
