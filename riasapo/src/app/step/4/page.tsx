@@ -6,7 +6,6 @@ import StepIndicator from "@/components/StepIndicator";
 import CodePanel from "@/components/CodePanel";
 import RoadmapGraph from "@/components/RoadmapGraph";
 import PreviewSandbox from "@/components/PreviewSandbox";
-import CodeExecutionPanel from "@/components/CodeExecutionPanel";
 import { useSessionSync } from "@/components/SessionSyncProvider";
 import type { HighlightRange } from "@/components/CodePanel";
 import type { ConceptNodeData, ConceptEdge, ScenarioDefinition } from "@/types";
@@ -273,16 +272,6 @@ function SelectedNodeSummary({
         )}
       </div>
 
-      {/* Code Execution: conceptノードのみ表示 */}
-      {node.nodeType !== 'app' && node.nodeType !== 'feature' && mapping?.codeSnippet && (
-        <div className="mt-4 border-t border-white/5 pt-3">
-          <CodeExecutionPanel
-            conceptTitle={node.title}
-            codeSnippet={mapping.codeSnippet}
-            explanation={mapping.explanation ?? node.subtitle}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -327,20 +316,50 @@ function Step4Content() {
     [allNodes]
   );
 
-  // ハイライト範囲の計算（概念名ラベル付き）
-  const highlightRanges = useMemo<readonly HighlightRange[]>(() => {
-    return mappings
-      .filter((m) => m.startLine > 0 && m.endLine > 0)
-      .map((m) => ({
-        nodeId: m.nodeId,
-        startLine: m.startLine,
-        endLine: m.endLine,
-        color: nodeColors.get(m.nodeId) ?? "#3B82F6",
-        label: nodes.find((n) => n.id === m.nodeId)?.title ?? m.nodeId,
-      }));
-  }, [mappings, nodeColors, nodes]);
+  // ファイル別ハイライト範囲の計算
+  // マッピングのcodeSnippetを各ファイル内で検索し、per-fileの行番号を算出する
+  interface FileHighlightRange extends HighlightRange {
+    readonly fileIndex: number;
+  }
 
-  // ホバー中またはアクティブなハイライト範囲
+  const fileHighlightRanges = useMemo<readonly FileHighlightRange[]>(() => {
+    if (!storedCode) return [];
+    const files = storedCode.files;
+
+    return mappings.flatMap((m) => {
+      const snippetFirstLine = m.codeSnippet.split("\n")[0].trim();
+      if (!snippetFirstLine) return [];
+
+      for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+        const fileLines = files[fileIdx].code.split("\n");
+        const startIdx = fileLines.findIndex((l) =>
+          l.trim().includes(snippetFirstLine)
+        );
+        if (startIdx === -1) continue;
+
+        const snippetLineCount = m.codeSnippet.split("\n").length;
+        return [
+          {
+            nodeId: m.nodeId,
+            startLine: startIdx + 1,
+            endLine: startIdx + snippetLineCount,
+            color: nodeColors.get(m.nodeId) ?? "#3B82F6",
+            label: nodes.find((n) => n.id === m.nodeId)?.title ?? m.nodeId,
+            fileIndex: fileIdx,
+          },
+        ];
+      }
+      return [];
+    });
+  }, [mappings, storedCode, nodeColors, nodes]);
+
+  // 現在のファイルタブに属するハイライトのみ抽出
+  const highlightRanges = useMemo<readonly HighlightRange[]>(
+    () => fileHighlightRanges.filter((r) => r.fileIndex === activeFileIndex),
+    [fileHighlightRanges, activeFileIndex]
+  );
+
+  // ホバー中またはアクティブなハイライト範囲（現在のファイル内のみ）
   const activeHighlightRange = useMemo<HighlightRange | undefined>(() => {
     const targetId = activeNodeId ?? hoveredNodeId;
     if (!targetId) return undefined;
@@ -444,6 +463,7 @@ function Step4Content() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             scenarioId,
+            experienceLevel: level,
             code: code.files.map((f) => `// === ${f.filename} ===\n${f.code}`).join("\n\n"),
             nodes: nodeList.map((n) => ({ id: n.id, title: n.title })),
           }),
@@ -478,10 +498,22 @@ function Step4Content() {
     init();
   }, [scenarioId]);
 
-  // ノードクリックハンドラ
-  const handleNodeClick = useCallback((nodeId: string) => {
-    setActiveNodeId((prev) => (prev === nodeId ? null : nodeId));
-  }, []);
+  // ノードクリックハンドラ: 対応するファイルタブに自動切り替え
+  const handleNodeClick = useCallback(
+    (nodeId: string) => {
+      setActiveNodeId((prev) => {
+        const newId = prev === nodeId ? null : nodeId;
+        if (newId) {
+          const range = fileHighlightRanges.find((r) => r.nodeId === newId);
+          if (range) {
+            setActiveFileIndex(range.fileIndex);
+          }
+        }
+        return newId;
+      });
+    },
+    [fileHighlightRanges]
+  );
 
   // ノードホバーハンドラ
   const handleNodeHover = useCallback((nodeId: string | null) => {
