@@ -48,7 +48,7 @@
 ## Phase 3: ユーザー管理・データ永続化
 
 - [ ] 4. Firebase Authentication導入
-- [ ] 4.1 Firebaseクライアント初期化とAuthProvider（React Context）を実装する
+- [x] 4.1 Firebaseクライアント初期化とAuthProvider（React Context）を実装する
   - `firebase`パッケージをインストールする
   - Firebaseクライアント初期化モジュールを作成する（firebaseConfig使用）
   - `NEXT_PUBLIC_FIREBASE_*`環境変数にFirebase設定値を定義する
