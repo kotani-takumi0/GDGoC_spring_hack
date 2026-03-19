@@ -326,7 +326,7 @@ function Step5Content() {
   const percentage = nodes.length > 0 ? (discussedCount / nodes.length) * 100 : 0;
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-200">
+    <div className="flex flex-col flex-1 min-h-0 bg-[#0A0A0B] text-slate-200">
       <StepIndicator currentStep={5} />
 
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
