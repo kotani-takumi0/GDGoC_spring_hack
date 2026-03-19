@@ -39,15 +39,15 @@ export async function POST(request: Request) {
     const queryVectorResult = await embedQuery(question);
     if (queryVectorResult.success) {
       const similarResult = await findSimilarQA(queryVectorResult.data, nodeId, 3);
-      if (similarResult.success) {
+      if (similarResult.success && similarResult.data.length > 0) {
         similarQAs = similarResult.data.map((qa) => ({
           question: qa.question,
           answer: qa.answer,
         }));
       }
     }
-  } catch {
-    // ベクトル検索失敗は無視（通常回答にフォールバック）
+  } catch (e) {
+    console.error('[ask] vector search error:', e);
   }
 
   const levelLabel: Record<string, string> = {
@@ -119,8 +119,8 @@ ${question}
       answer,
       embedding,
     });
-  } catch {
-    // ログ保存失敗は無視
+  } catch (e) {
+    console.error('[ask] save error:', e);
   }
 
   logger.apiMetric('/api/ask', Date.now() - startTime, 200);
