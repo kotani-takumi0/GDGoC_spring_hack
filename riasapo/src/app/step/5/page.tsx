@@ -8,7 +8,7 @@ import StepIndicator from "@/components/StepIndicator";
 import AnswerPanel from "@/components/AnswerPanel";
 import { useAuth } from "@/components/AuthProvider";
 import scenarioData from "@/data/scenarios/todo-app.json";
-import { DEMO_QUESTIONS } from "@/data/demo-questions";
+import { DEMO_QUESTIONS, DEMO_CONVERSATIONS } from "@/data/demo-questions";
 import type {
   ScenarioDefinition,
   ExperienceLevel,
@@ -290,10 +290,14 @@ function Step5Content() {
     setIsGeneratingDoc(true);
     setDocError(null);
 
-    const conversations = nodes.map((node) => ({
-      conceptTitle: node.title,
-      messages: chatHistoryRef.current.get(node.id) ?? [],
-    })).filter((c) => c.messages.length > 0);
+    // デモモード: 事前定義の対話データを使用
+    // AIモード: 実際の対話履歴を使用
+    const conversations = mode === "demo"
+      ? DEMO_CONVERSATIONS.map((c) => ({ conceptTitle: c.conceptTitle, messages: [...c.messages] }))
+      : nodes.map((node) => ({
+          conceptTitle: node.title,
+          messages: chatHistoryRef.current.get(node.id) ?? [],
+        })).filter((c) => c.messages.length > 0);
 
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
 
