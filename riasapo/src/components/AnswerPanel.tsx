@@ -185,11 +185,11 @@ export default function AnswerPanel({
     : "border-white/10";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* チャットエリア */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar"
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar"
       >
         <AnimatePresence>
           {messages.map((msg) => (
@@ -280,13 +280,13 @@ export default function AnswerPanel({
             onKeyDown={handleKeyDown}
             placeholder="自分の言葉で説明してみよう..."
             rows={2}
-            disabled={isEvaluating}
+            disabled={isEvaluating || isLoadingQuestion}
             className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-gray-500 resize-none focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-colors disabled:opacity-40"
           />
           <button
             type="button"
             onClick={() => handleSubmit()}
-            disabled={answer.trim().length === 0 || isEvaluating}
+            disabled={answer.trim().length === 0 || isEvaluating || isLoadingQuestion}
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer disabled:shadow-none"
           >
             <Send className="w-4 h-4" />
