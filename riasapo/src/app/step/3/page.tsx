@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StepIndicator from "@/components/StepIndicator";
 import { TODO_APP_DEMO } from "@/data/demo-code/todo-app";
+import { useSessionSync } from "@/components/SessionSyncProvider";
 
 // =============================================================================
 // 型定義
@@ -292,6 +293,7 @@ async function callGenerateCodeApi(
 function Step3Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { saveToSession } = useSessionSync();
 
   const scenarioId = searchParams.get("scenario") ?? "";
   const level = searchParams.get("level") ?? "";
@@ -316,16 +318,13 @@ function Step3Content() {
     const demoData = mode === "demo" && scenarioId === "todo-app" ? TODO_APP_DEMO : null;
     if (demoData) {
       console.log("[Step3] デモモード: プリセットコードを使用（API呼び出しスキップ）");
-      sessionStorage.setItem(
-        "riasapo-generated-code",
-        JSON.stringify({
-          files: demoData.files,
-          language: demoData.language,
-          explanation: demoData.explanation,
-          scenarioId,
-          level,
-        })
-      );
+      await saveToSession("riasapo-generated-code", {
+        files: demoData.files,
+        language: demoData.language,
+        explanation: demoData.explanation,
+        scenarioId,
+        level,
+      });
       setPageState({ status: "navigating" });
       router.push(`/step/4?scenario=${scenarioId}&level=${level}&mode=${mode}`);
       return;
@@ -348,16 +347,13 @@ function Step3Content() {
     try {
       const result = await callGenerateCodeApi(scenarioId, level);
 
-      sessionStorage.setItem(
-        "riasapo-generated-code",
-        JSON.stringify({
-          files: result.files,
-          language: result.language,
-          explanation: result.explanation,
-          scenarioId,
-          level,
-        })
-      );
+      await saveToSession("riasapo-generated-code", {
+        files: result.files,
+        language: result.language,
+        explanation: result.explanation,
+        scenarioId,
+        level,
+      });
 
       setPageState({ status: "navigating" });
       router.push(`/step/4?scenario=${scenarioId}&level=${level}&mode=${mode}`);
