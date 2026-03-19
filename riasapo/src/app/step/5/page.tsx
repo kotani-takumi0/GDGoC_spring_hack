@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useCallback, useMemo, useEffect } from "react";
+import { Suspense, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -209,10 +209,11 @@ function Step5Content() {
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
 
   // 概念が変わるたびに1つずつ質問を生成
+  const generatedConceptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!currentNode || isAllCompleted || generatedFiles.length === 0) return;
-    // 既に生成済みならスキップ
-    if (preparedQuestions.some((q) => q.conceptId === currentNode.id)) return;
+    if (generatedConceptsRef.current.has(currentNode.id)) return;
+    generatedConceptsRef.current.add(currentNode.id);
 
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
 
@@ -223,7 +224,7 @@ function Step5Content() {
       }
       setIsLoadingQuestions(false);
     });
-  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted, preparedQuestions]);
+  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
   // 現在の概念に対応する質問を取得
   const currentPrepared = currentNode
