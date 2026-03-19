@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Send, Loader2, Users } from "lucide-react";
+import { MessageCircle, Send, Loader2, Users, ExternalLink } from "lucide-react";
 
 // =============================================================================
 // 型定義
@@ -74,6 +74,7 @@ export default function ConceptQA({
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [similarQAs, setSimilarQAs] = useState<readonly { readonly question: string; readonly answer: string }[]>([]);
+  const [citations, setCitations] = useState<readonly { readonly title: string; readonly url: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // nodeId変更時に履歴を読み込み
@@ -118,6 +119,13 @@ export default function ConceptQA({
         setSimilarQAs(data.similarQAs);
       } else {
         setSimilarQAs([]);
+      }
+
+      // 引用を更新
+      if (data.citations && Array.isArray(data.citations)) {
+        setCitations(data.citations);
+      } else {
+        setCitations([]);
       }
 
       const entry: QAEntry = {
@@ -191,6 +199,29 @@ export default function ConceptQA({
               </motion.div>
             ))}
           </AnimatePresence>
+        </div>
+      )}
+
+      {/* 参考リンク（Grounding引用） */}
+      {citations.length > 0 && (
+        <div className="mb-3 px-1">
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+            <ExternalLink className="w-3 h-3" />
+            参考リンク
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {citations.map((c, i) => (
+              <a
+                key={i}
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+              >
+                {c.title}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
