@@ -53,12 +53,15 @@ function computeDepths(
   const targets = new Set(edges.map((e) => e.target));
   const roots = nodes.filter((n) => !targets.has(n.id));
   const queue = roots.map((r) => ({ id: r.id, depth: 0 }));
+
+  // BFSで最大depth（最長パス）を使う → conceptノードがfeatureより確実に下に来る
   while (queue.length > 0) {
     const { id, depth } = queue.shift()!;
-    if (depths.has(id)) continue;
+    const current = depths.get(id) ?? -1;
+    if (depth <= current) continue;
     depths.set(id, depth);
     for (const child of outEdges.get(id) ?? []) {
-      if (!depths.has(child)) queue.push({ id: child, depth: depth + 1 });
+      queue.push({ id: child, depth: depth + 1 });
     }
   }
   return depths;
