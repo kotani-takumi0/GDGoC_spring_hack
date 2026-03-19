@@ -74,14 +74,21 @@ export default function AnswerPanel({
   useEffect(() => {
     if (nodeTitle && nodeTitle !== prevNodeTitle) {
       setPrevNodeTitle(nodeTitle);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `senpai-${Date.now()}`,
-          role: "senpai",
-          text: questionText,
-        },
-      ]);
+      setMessages((prev) => {
+        // 同じ質問が既に追加されていたら重複しない
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.role === "senpai" && lastMsg.text === questionText) {
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: "senpai",
+            text: questionText,
+          },
+        ];
+      });
     }
   }, [nodeTitle, questionText, prevNodeTitle]);
 
@@ -89,15 +96,21 @@ export default function AnswerPanel({
   useEffect(() => {
     if (status && feedback) {
       const reaction = getRandomReaction(status);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `reaction-${Date.now()}`,
-          role: "senpai",
-          text: `${reaction}\n\n${feedback}`,
-          status,
-        },
-      ]);
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.role === "senpai" && lastMsg.status === status && lastMsg.text.includes(feedback)) {
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            id: `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: "senpai",
+            text: `${reaction}\n\n${feedback}`,
+            status,
+          },
+        ];
+      });
     }
   }, [status, feedback]);
 
