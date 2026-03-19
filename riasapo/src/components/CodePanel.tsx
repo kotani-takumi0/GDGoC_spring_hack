@@ -200,8 +200,8 @@ export default function CodePanel({
 }: CodePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const resolvedLang = resolveLanguage(language);
-  // markup/html/css はwrapLinesが壊れるのでPlainCodeViewを使う
-  const usePlainView = resolvedLang === "markup" || resolvedLang === "css";
+  // 全言語でSyntaxHighlighterを使用（PlainCodeViewは非推奨）
+  const usePlainView = false;
 
   const lineStyleMap = useMemo(
     () => buildLineStyleMap(highlightRanges, activeRange),
