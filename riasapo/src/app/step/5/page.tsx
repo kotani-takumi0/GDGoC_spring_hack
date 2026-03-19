@@ -2,6 +2,8 @@
 
 import { Suspense, useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import StepIndicator from "@/components/StepIndicator";
 import AnswerPanel from "@/components/AnswerPanel";
 import scenarioData from "@/data/scenarios/todo-app.json";
@@ -30,6 +32,12 @@ interface EvaluateResponse {
   readonly feedback: string;
 }
 
+interface GeneratedFile {
+  readonly filename: string;
+  readonly code: string;
+  readonly description: string;
+}
+
 // =============================================================================
 // 先輩の質問バリエーション（コードベース）
 // =============================================================================
@@ -37,29 +45,24 @@ interface EvaluateResponse {
 type QuestionTemplate = (snippet: string) => string;
 
 const QUESTION_TEMPLATES: readonly QuestionTemplate[] = [
-  () => `右のコード見て。\nこれ、なんでこう書く必要があるの？\n書かなかったらどうなるか含めて説明してみ。`,
-  () => `右のコード見てね。\nこの部分、後輩に「何してるんですか？」って聞かれたら\nなんて答える？`,
-  () => `右にコード出てるでしょ。\nこのコード、もしバグってたら何が起きると思う？\nこの処理の役割を踏まえて答えて。`,
-  () => `右のコード、実際のアプリ上でどういう動きになるか、\nユーザー目線で説明してみて。`,
-  () => `右のコード見ながら答えて。\nプログラミング知らない友達に説明するとしたら、\n何に例える？`,
-  () => `右のコード、別の書き方でも同じことできると思う？\nなんでこの書き方なのか、考えを聞かせて。`,
-  () => `右のコード見て。\nこの処理を消したら、アプリ全体にどう影響する？\n自分の言葉でどうぞ。`,
+  (title) => `右のコードの中から「${title}」に関係する部分を探してみて。\n見つけたら、その部分が何をしているか説明して。`,
+  (title) => `右のコード全体を見て、「${title}」がどこでどう使われてるか分かる？\n後輩に教えるつもりで説明してみて。`,
+  (title) => `右のコードから「${title}」の部分を見つけて。\nもしそこを消したら、アプリはどうなると思う？`,
+  (title) => `右のコードをヒントに答えて。\n「${title}」がこのアプリで果たしている役割を、ユーザー目線で説明してみ。`,
+  (title) => `右のコードの中に「${title}」の実例があるよ。\nプログラミング知らない友達に、この部分を何に例えて説明する？`,
+  (title) => `右のコードをよく見て。\n「${title}」の部分、別の書き方もできると思う？なんでこう書いてるのか考えを聞かせて。`,
+  (title) => `右のコードで「${title}」がどう実装されてるか確認して。\nこの仕組みがないと、開発者は何に困ると思う？`,
 ];
 
 const FALLBACK_TEMPLATES: readonly ((title: string) => string)[] = [
-  (title) => `「${title}」について、自分の言葉で説明してみて。\nどういう場面で使うか、なんで必要なのかも含めて。`,
-  (title) => `「${title}」がなかったらどうなると思う？\nなんでこれが必要なのか教えて。`,
-  (title) => `プログラミング初心者に「${title}」を教えるとしたら、\nどう説明する？`,
+  (title) => `右のコードを見ながら、「${title}」がどこで使われてるか探してみて。\n見つけたら、何をしているか説明して。`,
+  (title) => `右のコードの中で「${title}」に当たる部分はどこ？\nそれがなかったらアプリはどうなるか教えて。`,
+  (title) => `右のコードをヒントに、「${title}」を初心者に教えるとしたら\nどう説明する？`,
 ];
 
-function getQuestionForNode(snippet: string, title: string, index: number): string {
-  const hasCode = snippet && snippet !== title && snippet.length > 5;
-  if (hasCode) {
-    const template = QUESTION_TEMPLATES[index % QUESTION_TEMPLATES.length];
-    return template(snippet);
-  }
-  const fallback = FALLBACK_TEMPLATES[index % FALLBACK_TEMPLATES.length];
-  return fallback(title);
+function getQuestionForNode(title: string, index: number): string {
+  const template = QUESTION_TEMPLATES[index % QUESTION_TEMPLATES.length];
+  return template(title);
 }
 
 // =============================================================================
@@ -122,11 +125,26 @@ function Step5Content() {
   const nodes = scenario.nodes.filter((n) => n.nodeType !== "feature" && n.nodeType !== "app");
 
   const [codeSnippetMap, setCodeSnippetMap] = useState<Record<string, string>>({});
+  const [generatedFiles, setGeneratedFiles] = useState<readonly GeneratedFile[]>([]);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
 
   useEffect(() => {
     const mappings = loadMappings();
     const map = buildCodeSnippetMap(scenario, mappings);
     setCodeSnippetMap(map);
+
+    // Step 3で生成されたコードを読み込み
+    try {
+      const raw = sessionStorage.getItem("riasapo-generated-code");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.files && Array.isArray(parsed.files)) {
+          setGeneratedFiles(parsed.files);
+        }
+      }
+    } catch {
+      // 読み込み失敗は無視
+    }
   }, [scenario]);
 
   const [nodeStatuses, setNodeStatuses] = useState<Record<string, NodeStatus>>(() => {
@@ -152,7 +170,7 @@ function Step5Content() {
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
   const currentQuestion = currentNode
-    ? getQuestionForNode(currentSnippet, currentNode.title, currentNodeIndex)
+    ? getQuestionForNode(currentNode.title, currentNodeIndex)
     : "";
 
   const handleSubmit = useCallback(
@@ -292,27 +310,54 @@ function Step5Content() {
               />
             </main>
 
-            {/* 右: コードパネル */}
-            <aside className="w-[38%] flex-shrink-0 bg-black/40 relative z-10 flex flex-col overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs">📝</span>
-                  <h3 className="text-xs font-bold text-gray-300">
-                    {currentNode?.title ?? "コード"}
-                  </h3>
-                </div>
-                <p className="text-[10px] text-gray-500 mt-0.5">
-                  このコードを見ながら質問に答えてね
-                </p>
+            {/* 右: 生成コードパネル */}
+            <aside className="w-[42%] flex-shrink-0 bg-black/40 relative z-10 flex flex-col overflow-hidden">
+              {/* ファイルタブ */}
+              <div className="flex items-center border-b border-white/10 bg-white/[0.02] overflow-x-auto">
+                {generatedFiles.map((file, i) => (
+                  <button
+                    key={file.filename}
+                    type="button"
+                    onClick={() => setActiveFileIndex(i)}
+                    className={`px-4 py-2.5 text-[11px] font-mono whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                      i === activeFileIndex
+                        ? "text-indigo-400 border-indigo-400 bg-white/[0.04]"
+                        : "text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/[0.02]"
+                    }`}
+                  >
+                    {file.filename}
+                  </button>
+                ))}
+                {generatedFiles.length === 0 && (
+                  <span className="px-4 py-2.5 text-[11px] text-gray-600">コードなし</span>
+                )}
               </div>
-              <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                {currentSnippet ? (
-                  <pre className="text-emerald-300 text-[12px] leading-relaxed font-mono whitespace-pre-wrap">
-                    {currentSnippet}
-                  </pre>
+
+              {/* コード表示（シンタックスハイライト） */}
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                {generatedFiles[activeFileIndex] ? (
+                  <SyntaxHighlighter
+                    language={generatedFiles[activeFileIndex].filename.endsWith('.html') ? 'html' : 'typescript'}
+                    style={oneDark}
+                    showLineNumbers
+                    customStyle={{
+                      margin: 0,
+                      padding: '16px',
+                      background: 'transparent',
+                      fontSize: '12px',
+                      lineHeight: '1.6',
+                    }}
+                    lineNumberStyle={{
+                      color: '#4a5568',
+                      fontSize: '10px',
+                      minWidth: '2.5em',
+                    }}
+                  >
+                    {generatedFiles[activeFileIndex].code}
+                  </SyntaxHighlighter>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-600 text-xs">コードスニペットなし</p>
+                    <p className="text-gray-600 text-xs">Step 3でコードを生成してください</p>
                   </div>
                 )}
               </div>
