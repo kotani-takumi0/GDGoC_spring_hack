@@ -61,9 +61,14 @@ function loadMappings(): readonly StoredMapping[] | null {
   try {
     const raw = sessionStorage.getItem("riasapo-mappings");
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { mappings: StoredMapping[] };
-    if (Array.isArray(parsed.mappings) && parsed.mappings.length > 0) {
+    const parsed = JSON.parse(raw);
+    // Step 4が { mappings: [...] } 形式で保存した場合
+    if (parsed.mappings && Array.isArray(parsed.mappings) && parsed.mappings.length > 0) {
       return parsed.mappings;
+    }
+    // Step 4が配列を直接保存した場合
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed as StoredMapping[];
     }
     return null;
   } catch {
