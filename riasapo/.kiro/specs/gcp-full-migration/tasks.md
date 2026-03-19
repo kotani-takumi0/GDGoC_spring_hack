@@ -71,7 +71,7 @@
   - エラー時は`Result`型で返却する
   - _Requirements: 5.1, 5.5_
 
-- [ ] 5.2 SessionStorage書き込み時にFirestoreにも自動保存するSessionSyncProviderを実装する
+- [x] 5.2 SessionStorage書き込み時にFirestoreにも自動保存するSessionSyncProviderを実装する
   - 認証済みユーザーの場合、SessionStorageとFirestoreに二重書き込みするContextを作成する
   - 未認証ユーザーの場合は従来通りSessionStorageのみに保存する
   - アプリ起動時（認証済み時）にFirestoreからSessionStorageを復元する処理を実装する
