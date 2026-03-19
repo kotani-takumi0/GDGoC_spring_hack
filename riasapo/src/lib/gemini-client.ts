@@ -356,8 +356,13 @@ ${code}
 function buildEvaluatePrompt(
   node: ConceptNodeData,
   codeSnippet: string,
-  userAnswer: string
+  userAnswer: string,
+  modelAnswer?: string
 ): string {
+  const modelAnswerSection = modelAnswer
+    ? `\n## 模範解答（参考）\n${modelAnswer}\n`
+    : '';
+
   return `あなたはプログラミング学習支援AIです。
 ユーザーの理解度を評価してください。
 
@@ -369,7 +374,7 @@ function buildEvaluatePrompt(
 \`\`\`
 ${codeSnippet}
 \`\`\`
-
+${modelAnswerSection}
 ## ユーザーの回答
 ${userAnswer}
 
@@ -405,7 +410,8 @@ export interface GeminiClient {
   evaluateUnderstanding(
     node: ConceptNodeData,
     codeSnippet: string,
-    userAnswer: string
+    userAnswer: string,
+    modelAnswer?: string
   ): Promise<Result<EvaluationResult, GeminiError>>;
 
   askAboutConcept(
@@ -447,9 +453,10 @@ function createGeminiClient(): GeminiClient {
     async evaluateUnderstanding(
       node: ConceptNodeData,
       codeSnippet: string,
-      userAnswer: string
+      userAnswer: string,
+      modelAnswer?: string
     ): Promise<Result<EvaluationResult, GeminiError>> {
-      const prompt = buildEvaluatePrompt(node, codeSnippet, userAnswer);
+      const prompt = buildEvaluatePrompt(node, codeSnippet, userAnswer, modelAnswer);
       return callGeminiAPI<EvaluationResult>(prompt, evaluationResultSchema);
     },
 
