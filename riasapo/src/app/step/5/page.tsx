@@ -26,23 +26,11 @@ interface StoredMapping {
   readonly explanation: string;
 }
 
-type NodeStatus = "default" | "green" | "yellow" | "red";
-
-interface EvaluateResponse {
-  readonly nodeId: string;
-  readonly status: "green" | "yellow" | "red";
-  readonly feedback: string;
-}
-
 interface GeneratedFile {
   readonly filename: string;
   readonly code: string;
   readonly description: string;
 }
-
-// =============================================================================
-// 質問・模範解答
-// =============================================================================
 
 interface PreparedQuestion {
   readonly conceptId: string;
@@ -50,35 +38,27 @@ interface PreparedQuestion {
   readonly modelAnswer: string;
 }
 
-/**
- * 質問テキストからバッククォート内のコードスニペットを抽出する
- */
+// =============================================================================
+// ユーティリティ
+// =============================================================================
+
 function extractCodeReferences(question: string): readonly string[] {
   const matches = question.match(/`([^`]+)`/g);
   if (!matches) return [];
   return matches.map((m) => m.slice(1, -1)).filter((s) => s.length > 3);
 }
 
-/**
- * コード内でスニペットが出現する行番号を特定する
- */
 function findHighlightLines(code: string, snippets: readonly string[]): Set<number> {
   const lines = code.split('\n');
   const result = new Set<number>();
-
   for (const snippet of snippets) {
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes(snippet)) {
-        result.add(i + 1);
-      }
+      if (lines[i].includes(snippet)) result.add(i + 1);
     }
   }
   return result;
 }
 
-/**
- * 全概念の質問＋模範解答を一括生成
- */
 async function fetchAllQuestions(
   concepts: readonly { id: string; title: string }[],
   code: string,
@@ -102,21 +82,13 @@ async function fetchAllQuestions(
   }
 }
 
-// =============================================================================
-// ユーティリティ
-// =============================================================================
-
 function loadMappings(): readonly StoredMapping[] | null {
   try {
     const raw = sessionStorage.getItem("riasapo-mappings");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed.mappings && Array.isArray(parsed.mappings) && parsed.mappings.length > 0) {
-      return parsed.mappings;
-    }
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed as StoredMapping[];
-    }
+    if (parsed.mappings && Array.isArray(parsed.mappings) && parsed.mappings.length > 0) return parsed.mappings;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed as StoredMapping[];
     return null;
   } catch {
     return null;
@@ -128,14 +100,8 @@ function buildCodeSnippetMap(
   mappings: readonly StoredMapping[] | null,
 ): Record<string, string> {
   const snippetMap: Record<string, string> = {};
-  for (const fb of scenario.fallbackMappings) {
-    snippetMap[fb.nodeId] = fb.codeExample;
-  }
-  if (mappings) {
-    for (const m of mappings) {
-      snippetMap[m.nodeId] = m.codeSnippet;
-    }
-  }
+  for (const fb of scenario.fallbackMappings) snippetMap[fb.nodeId] = fb.codeExample;
+  if (mappings) for (const m of mappings) snippetMap[m.nodeId] = m.codeSnippet;
   return snippetMap;
 }
 
@@ -143,11 +109,11 @@ function buildCodeSnippetMap(
 // ステータス設定
 // =============================================================================
 
+type NodeStatus = "default" | "discussed";
+
 const STATUS_CONFIG: Record<NodeStatus, { dot: string; label: string }> = {
-  default: { dot: "bg-gray-600", label: "未回答" },
-  green: { dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]", label: "OK" },
-  yellow: { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", label: "惜しい" },
-  red: { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", label: "復習" },
+  default: { dot: "bg-gray-600", label: "" },
+  discussed: { dot: "bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.6)]", label: "対話済み" },
 };
 
 // =============================================================================
@@ -169,61 +135,49 @@ function Step5Content() {
 
   useEffect(() => {
     const mappings = loadMappings();
-    const map = buildCodeSnippetMap(scenario, mappings);
-    setCodeSnippetMap(map);
-
-    // Step 3で生成されたコードを読み込み
+    setCodeSnippetMap(buildCodeSnippetMap(scenario, mappings));
     try {
       const raw = sessionStorage.getItem("riasapo-generated-code");
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.files && Array.isArray(parsed.files)) {
-          setGeneratedFiles(parsed.files);
-        }
+        if (parsed.files && Array.isArray(parsed.files)) setGeneratedFiles(parsed.files);
       }
-    } catch {
-      // 読み込み失敗は無視
-    }
+    } catch { /* ignore */ }
   }, [scenario]);
 
   const [nodeStatuses, setNodeStatuses] = useState<Record<string, NodeStatus>>(() => {
     const initial: Record<string, NodeStatus> = {};
-    for (const node of nodes) {
-      initial[node.id] = "default";
-    }
+    for (const node of nodes) initial[node.id] = "default";
     return initial;
   });
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
-  const [viewingNodeIndex, setViewingNodeIndex] = useState<number | null>(null); // 過去チャット閲覧用
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [lastFeedback, setLastFeedback] = useState<{
-    status: "green" | "yellow" | "red";
-    text: string;
-  } | null>(null);
+  const [viewingNodeIndex, setViewingNodeIndex] = useState<number | null>(null);
+  const [isChatting, setIsChatting] = useState(false);
   const [preparedQuestions, setPreparedQuestions] = useState<readonly PreparedQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [highlightLines, setHighlightLines] = useState<Set<number>>(new Set());
 
-  const answeredCount = useMemo(
+  // 会話履歴（chat API用）
+  const chatHistoryRef = useRef<Map<string, { role: 'senpai' | 'user'; text: string }[]>>(new Map());
+
+  const discussedCount = useMemo(
     () => Object.values(nodeStatuses).filter((s) => s !== "default").length,
     [nodeStatuses],
   );
 
-  const isAllCompleted = answeredCount === nodes.length;
+  const isAllCompleted = discussedCount === nodes.length;
   const isViewingPast = viewingNodeIndex !== null && viewingNodeIndex !== currentNodeIndex;
   const displayNodeIndex = viewingNodeIndex ?? currentNodeIndex;
-  const currentNode = nodes[currentNodeIndex]; // 実際の進行位置
-  const displayNode = nodes[displayNodeIndex]; // 表示中のノード
-  const currentSnippet = displayNode ? (codeSnippetMap[displayNode.id] ?? "") : "";
+  const currentNode = nodes[currentNodeIndex];
+  const displayNode = nodes[displayNodeIndex];
 
-  // 概念が変わるたびに質問を準備
+  // 質問生成
   const generatedConceptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!currentNode || isAllCompleted) return;
     if (generatedConceptsRef.current.has(currentNode.id)) return;
     generatedConceptsRef.current.add(currentNode.id);
 
-    // デモモード: 事前定義の質問を使用（API呼び出しなし）
     if (mode === "demo") {
       const demoQ = DEMO_QUESTIONS.find((q) => q.conceptId === currentNode.id);
       if (demoQ) {
@@ -236,29 +190,22 @@ function Step5Content() {
       return;
     }
 
-    // AIモード: Geminiで質問を生成
     if (generatedFiles.length === 0) return;
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
-
     setIsLoadingQuestions(true);
     fetchAllQuestions([{ id: currentNode.id, title: currentNode.title }], allCode, level).then((qs) => {
-      if (qs.length > 0) {
-        setPreparedQuestions((prev) => [...prev, ...qs]);
-      }
+      if (qs.length > 0) setPreparedQuestions((prev) => [...prev, ...qs]);
       setIsLoadingQuestions(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
-  // 現在の概念に対応する質問を取得
-  // 表示中ノードの質問（閲覧時は過去の質問、通常時は現在の質問）
   const displayPrepared = displayNode
     ? preparedQuestions.find((q) => q.conceptId === displayNode.id)
     : null;
   const currentQuestion = displayPrepared?.question ?? "";
-  const currentModelAnswer = displayPrepared?.modelAnswer ?? "";
 
-  // 質問が変わるたびにハイライト更新
+  // ハイライト更新
   useEffect(() => {
     if (!currentQuestion || generatedFiles.length === 0) {
       setHighlightLines(new Set());
@@ -276,58 +223,65 @@ function Step5Content() {
     setHighlightLines(new Set());
   }, [currentQuestion, generatedFiles]);
 
-  const handleSubmit = useCallback(
-    async (answer: string) => {
-      if (!currentNode || isEvaluating) return;
+  // 対話送信ハンドラ
+  const handleSendMessage = useCallback(
+    async (userMessage: string): Promise<string> => {
+      if (!displayNode) return "エラーが発生しました";
 
-      setIsEvaluating(true);
-      setLastFeedback(null);
+      setIsChatting(true);
+
+      // 会話履歴を更新
+      const nodeId = displayNode.id;
+      const history = chatHistoryRef.current.get(nodeId) ?? [];
+      history.push({ role: 'user', text: userMessage });
+
+      const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
 
       try {
-        const response = await fetch("/api/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            nodeId: currentNode.id,
-            nodeTitle: currentNode.title,
-            codeSnippet: currentSnippet || `// ${currentNode.title}の例`,
-            userAnswer: answer,
-            modelAnswer: currentModelAnswer,
-            scenarioId: "todo-app",
+            conceptTitle: displayNode.title,
+            code: allCode,
             experienceLevel: level,
-            userId: authState.user?.uid ?? null,
-            question: currentQuestion,
+            history,
+            userMessage,
           }),
         });
 
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        const reply = data.reply ?? "うーん、ちょっと考えさせて...";
 
-        const result = (await response.json()) as EvaluateResponse;
+        history.push({ role: 'senpai', text: reply });
+        chatHistoryRef.current.set(nodeId, history);
 
-        setNodeStatuses((prev) => ({ ...prev, [result.nodeId]: result.status }));
-        setLastFeedback({ status: result.status, text: result.feedback });
-
-        setTimeout(() => {
-          if (currentNodeIndex < nodes.length - 1) {
-            setCurrentNodeIndex((prev) => prev + 1);
-            setLastFeedback(null);
-          }
-        }, 2500);
-      } catch (error) {
-        console.error("Evaluate API error:", error);
-        setNodeStatuses((prev) => ({ ...prev, [currentNode.id]: "red" }));
-        setLastFeedback({
-          status: "red",
-          text: "ごめん、評価中にエラーが出ちゃった。もう一回試してみて。",
-        });
+        return reply;
+      } catch {
+        return "ごめん、通信エラーが出ちゃった。もう一回話しかけてみて。";
       } finally {
-        setIsEvaluating(false);
+        setIsChatting(false);
       }
     },
-    [currentNode, currentSnippet, currentNodeIndex, isEvaluating, level, nodes.length],
+    [displayNode, generatedFiles, level],
   );
 
-  const percentage = nodes.length > 0 ? (answeredCount / nodes.length) * 100 : 0;
+  // 次の概念へ
+  const handleNext = useCallback(() => {
+    if (currentNode) {
+      setNodeStatuses((prev) => ({ ...prev, [currentNode.id]: "discussed" }));
+    }
+    if (currentNodeIndex < nodes.length - 1) {
+      setCurrentNodeIndex((prev) => prev + 1);
+      setViewingNodeIndex(null);
+    } else {
+      // 最後の概念 → 全完了
+      setNodeStatuses((prev) => ({ ...prev, [currentNode.id]: "discussed" }));
+    }
+  }, [currentNode, currentNodeIndex, nodes.length]);
+
+  const percentage = nodes.length > 0 ? (discussedCount / nodes.length) * 100 : 0;
 
   return (
     <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-200">
@@ -345,11 +299,15 @@ function Step5Content() {
           <div className="p-4 border-b border-white/5">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-base">🧑‍💻</span>
-              <h2 className="text-xs font-bold text-white">先輩チェック</h2>
+              <h2 className="text-xs font-bold text-white">先輩と対話</h2>
             </div>
-            <div className="mt-2">
+            <p className="text-[10px] text-gray-500 mt-1">
+              各概念について先輩と対話しよう。<br />
+              納得できたら「次へ」で進もう。
+            </p>
+            <div className="mt-3">
               <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                <span>{answeredCount}/{nodes.length}</span>
+                <span>{discussedCount}/{nodes.length}</span>
                 <span>{Math.round(percentage)}%</span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -366,7 +324,7 @@ function Step5Content() {
               const st = nodeStatuses[node.id] ?? "default";
               const isCurrent = !isAllCompleted && i === currentNodeIndex;
               const isViewing = i === displayNodeIndex;
-              const canClick = st !== "default"; // 回答済みのみクリック可能
+              const canClick = st !== "default";
               return (
                 <div
                   key={node.id}
@@ -386,11 +344,7 @@ function Step5Content() {
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_CONFIG[st].dot}`} />
                   <span className="truncate flex-1">{node.title}</span>
                   {st !== "default" && (
-                    <span className={`text-[8px] font-bold ${
-                      st === "green" ? "text-emerald-500" : st === "yellow" ? "text-amber-500" : "text-red-500"
-                    }`}>
-                      {STATUS_CONFIG[st].label}
-                    </span>
+                    <span className="text-[8px] font-bold text-indigo-400">{STATUS_CONFIG[st].label}</span>
                   )}
                 </div>
               );
@@ -403,10 +357,10 @@ function Step5Content() {
             <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.3)] border border-emerald-500/30 text-3xl">
               🎉
             </div>
-            <h2 className="text-2xl font-bold text-white">お疲れ！全部チェックしたよ</h2>
+            <h2 className="text-2xl font-bold text-white">お疲れ！全部話せたね</h2>
             <p className="text-gray-400 text-sm leading-relaxed max-w-md">
-              左のリストが君の理解度マップだ。<br />
-              黄色や赤の概念があったら、もう一回コードを見直してみるといいよ。
+              全ての概念について対話が完了しました。<br />
+              左のリストをクリックすると、過去の対話を振り返れるよ。
             </p>
           </main>
         ) : (
@@ -415,21 +369,19 @@ function Step5Content() {
             <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10 border-r border-white/10">
               <AnswerPanel
                 nodeTitle={displayNode?.title ?? ""}
-                codeSnippet={currentSnippet}
                 questionText={currentQuestion}
                 isLoadingQuestion={!isViewingPast && (isLoadingQuestions || (!currentQuestion && !isAllCompleted))}
                 readOnly={isViewingPast}
-                onSubmit={handleSubmit}
+                onSendMessage={handleSendMessage}
+                onNext={handleNext}
                 onBack={() => setViewingNodeIndex(null)}
-                isEvaluating={isEvaluating}
-                feedback={isViewingPast ? undefined : lastFeedback?.text}
-                status={isViewingPast ? undefined : lastFeedback?.status}
+                isLast={currentNodeIndex === nodes.length - 1}
+                isChatting={isChatting}
               />
             </main>
 
-            {/* 右: 生成コードパネル */}
+            {/* 右: コードパネル */}
             <aside className="w-[42%] flex-shrink-0 bg-black/40 relative z-10 flex flex-col overflow-hidden">
-              {/* ファイルタブ */}
               <div className="flex items-center border-b border-white/10 bg-white/[0.02] overflow-x-auto">
                 {generatedFiles.map((file, i) => (
                   <button
@@ -450,7 +402,6 @@ function Step5Content() {
                 )}
               </div>
 
-              {/* コード表示（シンタックスハイライト） */}
               <div className="flex-1 overflow-auto custom-scrollbar">
                 {generatedFiles[activeFileIndex] ? (
                   <SyntaxHighlighter
@@ -469,18 +420,8 @@ function Step5Content() {
                         },
                       };
                     }}
-                    customStyle={{
-                      margin: 0,
-                      padding: '16px 0',
-                      background: 'transparent',
-                      fontSize: '12px',
-                      lineHeight: '1.6',
-                    }}
-                    lineNumberStyle={{
-                      color: '#4a5568',
-                      fontSize: '10px',
-                      minWidth: '2.5em',
-                    }}
+                    customStyle={{ margin: 0, padding: '16px 0', background: 'transparent', fontSize: '12px', lineHeight: '1.6' }}
+                    lineNumberStyle={{ color: '#4a5568', fontSize: '10px', minWidth: '2.5em' }}
                   >
                     {generatedFiles[activeFileIndex].code}
                   </SyntaxHighlighter>
