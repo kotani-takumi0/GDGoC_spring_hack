@@ -29,7 +29,7 @@
   - プロジェクトID `gdghackathon-7ff23`、リージョン `asia-northeast1` で初期化する
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 2.2 ローカル開発環境でVertex AI経由の全5エンドポイントの動作確認テストを実施する
+- [x] 2.2 ローカル開発環境でVertex AI経由の全5エンドポイントの動作確認テストを実施する
   - personalizeDescriptions: ノード説明のパーソナライズが正しく返却されることを確認
   - generateCode: TypeScriptコードが複数ファイルで生成されることを確認
   - mapConceptsToCode: 概念-コードマッピングが返却されることを確認
