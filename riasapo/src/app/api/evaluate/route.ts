@@ -17,6 +17,7 @@ interface EvaluateRequest {
   readonly nodeTitle: string;
   readonly codeSnippet: string;
   readonly userAnswer: string;
+  readonly modelAnswer?: string;
   readonly experienceLevel: ExperienceLevel;
 }
 
@@ -95,6 +96,7 @@ function validateRequest(
       nodeTitle: req.nodeTitle,
       codeSnippet: req.codeSnippet,
       userAnswer: req.userAnswer,
+      modelAnswer: typeof req.modelAnswer === 'string' ? req.modelAnswer : undefined,
       experienceLevel: req.experienceLevel as ExperienceLevel,
     },
   };
@@ -127,7 +129,7 @@ export async function POST(
     );
   }
 
-  const { nodeId, nodeTitle, codeSnippet, userAnswer } = validation.data;
+  const { nodeId, nodeTitle, codeSnippet, userAnswer, modelAnswer } = validation.data;
 
   // ConceptNodeDataオブジェクトを構築
   const node: ConceptNodeData = {
@@ -143,7 +145,8 @@ export async function POST(
     const result = await geminiClient.evaluateUnderstanding(
       node,
       codeSnippet,
-      userAnswer
+      userAnswer,
+      modelAnswer
     );
 
     if (!result.success) {

@@ -1,5 +1,5 @@
 // =============================================================================
-// POST /api/generate-question — 概念の理解度を確かめる質問を生成
+// POST /api/generate-question — 全概念の質問＋模範解答を一括生成
 // =============================================================================
 
 import { NextResponse } from 'next/server';
@@ -14,24 +14,29 @@ function createGenAI(): GoogleGenAI {
   return new GoogleGenAI({ vertexai: true, project: GCP_PROJECT, location: GCP_LOCATION });
 }
 
-interface GenerateQuestionRequest {
-  readonly conceptTitle: string;
+interface ConceptInput {
+  readonly id: string;
+  readonly title: string;
+}
+
+interface GenerateQuestionsRequest {
+  readonly concepts: readonly ConceptInput[];
   readonly code: string;
   readonly experienceLevel: string;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  let body: GenerateQuestionRequest;
+  let body: GenerateQuestionsRequest;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { conceptTitle, code, experienceLevel } = body;
+  const { concepts, code, experienceLevel } = body;
 
-  if (!conceptTitle) {
-    return NextResponse.json({ error: 'conceptTitle is required' }, { status: 400 });
+  if (!concepts || concepts.length === 0) {
+    return NextResponse.json({ error: 'concepts is required' }, { status: 400 });
   }
 
   const levelLabel: Record<string, string> = {
@@ -40,25 +45,35 @@ export async function POST(request: Request): Promise<NextResponse> {
     'other-language-experienced': '他言語経験者',
   };
 
+  const conceptList = concepts.map((c) => `- ${c.id}: ${c.title}`).join('\n');
+
   const prompt = `あなたはプログラミングの先輩エンジニアです。口調はカジュアルで親しみやすいが、技術的に鋭い。
 
-後輩が「${conceptTitle}」を本当に理解しているか確かめる質問を1つ作ってください。
+後輩が以下の概念を本当に理解しているか確かめる質問を、概念ごとに1つずつ作ってください。
+また、それぞれの質問に対する模範解答も作ってください。
 
 ## 後輩のレベル
 ${levelLabel[experienceLevel] ?? experienceLevel}
 
-## 後輩が学習中のコード（右側に表示されている）
+## 確認する概念
+${conceptList}
+
+## 後輩が学習中のコード（画面右側に表示されている）
 \`\`\`
-${code.slice(0, 2000)}
+${code.slice(0, 3000)}
 \`\`\`
 
 ## 質問生成のルール
-- コードの中の「${conceptTitle}」に関係する具体的な箇所を指して質問する
-- 暗記では答えられない、理解していないと答えられない質問にする
-- 「もしこの部分を○○に変えたらどうなる？」「ここを消したら何が起きる？」「なぜこう書いた？」のような、思考を要する問い
-- 右のコードを見ながら答えられる内容にする
-- 先輩っぽい口調で、1〜3文で簡潔に
-- 「右のコード見て」から始める`;
+- 各概念につき質問を1つだけ生成する
+- 右のコードの中の具体的な箇所を \`バッククォート\` で示して質問する
+- 暗記では答えられない、コードを見て考えないと答えられない質問にする
+- 「もしこの部分を変えたらどうなる？」「ここを消したら？」「なぜこう書いた？」のような思考を要する問い
+- 先輩っぽいカジュアルな口調で、1〜3文で簡潔に
+- 「右のコード見て」から始める
+
+## 模範解答のルール
+- 後輩のレベルに合った言葉で、2〜4文で簡潔に
+- コードのどの部分がどう関係するかを具体的に説明する`;
 
   try {
     const ai = createGenAI();
@@ -70,11 +85,22 @@ ${code.slice(0, 2000)}
         responseSchema: {
           type: 'OBJECT',
           properties: {
-            question: { type: 'STRING' },
+            questions: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  conceptId: { type: 'STRING' },
+                  question: { type: 'STRING' },
+                  modelAnswer: { type: 'STRING' },
+                },
+                required: ['conceptId', 'question', 'modelAnswer'],
+              },
+            },
           },
-          required: ['question'],
+          required: ['questions'],
         },
-        thinkingConfig: { thinkingBudget: 512 },
+        thinkingConfig: { thinkingBudget: 1024 },
       },
     });
 
@@ -83,8 +109,8 @@ ${code.slice(0, 2000)}
       return NextResponse.json({ error: '質問生成に失敗しました' }, { status: 502 });
     }
 
-    const parsed = JSON.parse(text) as { question: string };
-    return NextResponse.json({ question: parsed.question });
+    const parsed = JSON.parse(text) as { questions: { conceptId: string; question: string; modelAnswer: string }[] };
+    return NextResponse.json(parsed);
   } catch (e) {
     const msg = e instanceof Error ? e.message : '質問生成エラー';
     return NextResponse.json({ error: msg }, { status: 502 });

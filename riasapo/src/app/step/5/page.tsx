@@ -39,8 +39,14 @@ interface GeneratedFile {
 }
 
 // =============================================================================
-// AI質問生成
+// 質問・模範解答
 // =============================================================================
+
+interface PreparedQuestion {
+  readonly conceptId: string;
+  readonly question: string;
+  readonly modelAnswer: string;
+}
 
 /**
  * 質問テキストからバッククォート内のコードスニペットを抽出する
@@ -61,29 +67,36 @@ function findHighlightLines(code: string, snippets: readonly string[]): Set<numb
   for (const snippet of snippets) {
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].includes(snippet)) {
-        result.add(i + 1); // 1-indexed
+        result.add(i + 1);
       }
     }
   }
   return result;
 }
 
-async function fetchQuestion(
-  conceptTitle: string,
+/**
+ * 全概念の質問＋模範解答を一括生成
+ */
+async function fetchAllQuestions(
+  concepts: readonly { id: string; title: string }[],
   code: string,
   experienceLevel: string
-): Promise<string> {
+): Promise<readonly PreparedQuestion[]> {
   try {
     const res = await fetch('/api/generate-question', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conceptTitle, code, experienceLevel }),
+      body: JSON.stringify({ concepts, code, experienceLevel }),
     });
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    return data.question ?? '右のコードを見て、この概念について説明してみて。';
+    return data.questions ?? [];
   } catch {
-    return `右のコードを見て、「${conceptTitle}」に関係する部分を見つけて説明してみて。`;
+    return concepts.map((c) => ({
+      conceptId: c.id,
+      question: `右のコードを見て、「${c.title}」に関係する部分を見つけて説明してみて。`,
+      modelAnswer: '',
+    }));
   }
 }
 
@@ -182,8 +195,8 @@ function Step5Content() {
     status: "green" | "yellow" | "red";
     text: string;
   } | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState("");
-  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const [preparedQuestions, setPreparedQuestions] = useState<readonly PreparedQuestion[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [highlightLines, setHighlightLines] = useState<Set<number>>(new Set());
 
   const answeredCount = useMemo(
@@ -195,36 +208,44 @@ function Step5Content() {
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
 
-  // 概念が変わるたびにAIに質問を生成させる
+  // 初回: 全概念の質問＋模範解答を一括生成
   useEffect(() => {
-    if (!currentNode || isAllCompleted) return;
+    if (generatedFiles.length === 0 || nodes.length === 0 || preparedQuestions.length > 0) return;
 
     const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
+    const conceptInputs = nodes.map((n) => ({ id: n.id, title: n.title }));
 
-    setIsLoadingQuestion(true);
-    setCurrentQuestion("");
-
-    fetchQuestion(currentNode.title, allCode, level).then((q) => {
-      setCurrentQuestion(q);
-      setIsLoadingQuestion(false);
-
-      // 質問内のコード参照から該当行をハイライト
-      const activeFile = generatedFiles[activeFileIndex];
-      if (activeFile) {
-        const refs = extractCodeReferences(q);
-        // 全ファイルから検索して、該当ファイルに自動切替
-        for (let fi = 0; fi < generatedFiles.length; fi++) {
-          const lines = findHighlightLines(generatedFiles[fi].code, refs);
-          if (lines.size > 0) {
-            setActiveFileIndex(fi);
-            setHighlightLines(lines);
-            return;
-          }
-        }
-        setHighlightLines(new Set());
-      }
+    setIsLoadingQuestions(true);
+    fetchAllQuestions(conceptInputs, allCode, level).then((qs) => {
+      setPreparedQuestions(qs);
+      setIsLoadingQuestions(false);
     });
-  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
+  }, [generatedFiles, nodes, level, preparedQuestions.length]);
+
+  // 現在の概念に対応する質問を取得
+  const currentPrepared = currentNode
+    ? preparedQuestions.find((q) => q.conceptId === currentNode.id)
+    : null;
+  const currentQuestion = currentPrepared?.question ?? "";
+  const currentModelAnswer = currentPrepared?.modelAnswer ?? "";
+
+  // 質問が変わるたびにハイライト更新
+  useEffect(() => {
+    if (!currentQuestion || generatedFiles.length === 0) {
+      setHighlightLines(new Set());
+      return;
+    }
+    const refs = extractCodeReferences(currentQuestion);
+    for (let fi = 0; fi < generatedFiles.length; fi++) {
+      const lines = findHighlightLines(generatedFiles[fi].code, refs);
+      if (lines.size > 0) {
+        setActiveFileIndex(fi);
+        setHighlightLines(lines);
+        return;
+      }
+    }
+    setHighlightLines(new Set());
+  }, [currentQuestion, generatedFiles]);
 
   const handleSubmit = useCallback(
     async (answer: string) => {
@@ -242,6 +263,7 @@ function Step5Content() {
             nodeTitle: currentNode.title,
             codeSnippet: currentSnippet || `// ${currentNode.title}の例`,
             userAnswer: answer,
+            modelAnswer: currentModelAnswer,
             experienceLevel: level,
           }),
         });
@@ -356,7 +378,7 @@ function Step5Content() {
                 nodeTitle={currentNode?.title ?? ""}
                 codeSnippet={currentSnippet}
                 questionText={currentQuestion}
-                isLoadingQuestion={isLoadingQuestion}
+                isLoadingQuestion={isLoadingQuestions || (!currentQuestion && !isAllCompleted)}
                 onSubmit={handleSubmit}
                 isEvaluating={isEvaluating}
                 feedback={lastFeedback?.text}
