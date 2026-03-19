@@ -217,8 +217,8 @@ export default function AnswerPanel({
               </button>
             </div>
 
-            {/* 次の概念へボタン（1往復以上したら表示） */}
-            {hasConversation && !isChatting && (
+            {/* 次の概念へボタン */}
+            {!isChatting && !isLoadingQuestion && (
               <button
                 type="button"
                 onClick={onNext}
