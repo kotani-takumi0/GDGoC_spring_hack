@@ -52,6 +52,7 @@ interface AnswerPanelProps {
   readonly nodeTitle: string;
   readonly codeSnippet: string;
   readonly questionText: string;
+  readonly isLoadingQuestion?: boolean;
   readonly onSubmit: (answer: string) => void;
   readonly isEvaluating: boolean;
   readonly feedback?: string;
@@ -93,6 +94,7 @@ export default function AnswerPanel({
   nodeTitle,
   codeSnippet,
   questionText,
+  isLoadingQuestion,
   onSubmit,
   isEvaluating,
   feedback,
@@ -103,27 +105,22 @@ export default function AnswerPanel({
   const [prevNodeTitle, setPrevNodeTitle] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // ノードが変わったら先輩の質問を追加
+  // 質問テキストが更新されたらチャットに追加
   useEffect(() => {
-    if (nodeTitle && nodeTitle !== prevNodeTitle) {
-      setPrevNodeTitle(nodeTitle);
-      setMessages((prev) => {
-        // 同じ質問が既に追加されていたら重複しない
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.role === "senpai" && lastMsg.text === questionText) {
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: "senpai",
-            text: questionText,
-          },
-        ];
-      });
-    }
-  }, [nodeTitle, questionText, prevNodeTitle]);
+    if (!questionText || isLoadingQuestion) return;
+    setMessages((prev) => {
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg?.role === "senpai" && lastMsg.text === questionText) return prev;
+      return [
+        ...prev,
+        {
+          id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          role: "senpai",
+          text: questionText,
+        },
+      ];
+    });
+  }, [questionText, isLoadingQuestion]);
 
   // フィードバックが来たら先輩のリアクションを追加
   useEffect(() => {
@@ -234,6 +231,25 @@ export default function AnswerPanel({
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {/* 質問生成中のインジケータ */}
+        {isLoadingQuestion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex gap-2.5"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-sm">
+              🧑‍💻
+            </div>
+            <div className="px-3.5 py-3 rounded-2xl rounded-tl-sm bg-white/[0.04] border border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+                <span className="text-xs text-gray-400">先輩が質問を考え中...</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* 評価中のインジケータ */}
         {isEvaluating && (
