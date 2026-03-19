@@ -194,6 +194,7 @@ function Step5Content() {
     return initial;
   });
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
+  const [viewingNodeIndex, setViewingNodeIndex] = useState<number | null>(null); // 過去チャット閲覧用
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [lastFeedback, setLastFeedback] = useState<{
     status: "green" | "yellow" | "red";
@@ -209,8 +210,11 @@ function Step5Content() {
   );
 
   const isAllCompleted = answeredCount === nodes.length;
-  const currentNode = nodes[currentNodeIndex];
-  const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
+  const isViewingPast = viewingNodeIndex !== null && viewingNodeIndex !== currentNodeIndex;
+  const displayNodeIndex = viewingNodeIndex ?? currentNodeIndex;
+  const currentNode = nodes[currentNodeIndex]; // 実際の進行位置
+  const displayNode = nodes[displayNodeIndex]; // 表示中のノード
+  const currentSnippet = displayNode ? (codeSnippetMap[displayNode.id] ?? "") : "";
 
   // 概念が変わるたびに質問を準備
   const generatedConceptsRef = useRef<Set<string>>(new Set());
@@ -247,11 +251,12 @@ function Step5Content() {
   }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
   // 現在の概念に対応する質問を取得
-  const currentPrepared = currentNode
-    ? preparedQuestions.find((q) => q.conceptId === currentNode.id)
+  // 表示中ノードの質問（閲覧時は過去の質問、通常時は現在の質問）
+  const displayPrepared = displayNode
+    ? preparedQuestions.find((q) => q.conceptId === displayNode.id)
     : null;
-  const currentQuestion = currentPrepared?.question ?? "";
-  const currentModelAnswer = currentPrepared?.modelAnswer ?? "";
+  const currentQuestion = displayPrepared?.question ?? "";
+  const currentModelAnswer = displayPrepared?.modelAnswer ?? "";
 
   // 質問が変わるたびにハイライト更新
   useEffect(() => {
@@ -360,12 +365,19 @@ function Step5Content() {
             {nodes.map((node, i) => {
               const st = nodeStatuses[node.id] ?? "default";
               const isCurrent = !isAllCompleted && i === currentNodeIndex;
+              const isViewing = i === displayNodeIndex;
+              const canClick = st !== "default"; // 回答済みのみクリック可能
               return (
                 <div
                   key={node.id}
+                  onClick={() => canClick ? setViewingNodeIndex(i) : undefined}
                   className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] transition-all ${
-                    isCurrent
+                    canClick ? "cursor-pointer hover:bg-white/[0.05]" : ""
+                  } ${
+                    isViewing
                       ? "bg-indigo-500/15 border border-indigo-500/30 text-white font-medium"
+                      : isCurrent
+                      ? "bg-indigo-500/10 border border-indigo-500/20 text-white"
                       : st !== "default"
                       ? "text-gray-400"
                       : "text-gray-600"
@@ -402,14 +414,16 @@ function Step5Content() {
             {/* 中央: チャット */}
             <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10 border-r border-white/10">
               <AnswerPanel
-                nodeTitle={currentNode?.title ?? ""}
+                nodeTitle={displayNode?.title ?? ""}
                 codeSnippet={currentSnippet}
                 questionText={currentQuestion}
-                isLoadingQuestion={isLoadingQuestions || (!currentQuestion && !isAllCompleted)}
+                isLoadingQuestion={!isViewingPast && (isLoadingQuestions || (!currentQuestion && !isAllCompleted))}
+                readOnly={isViewingPast}
                 onSubmit={handleSubmit}
+                onBack={() => setViewingNodeIndex(null)}
                 isEvaluating={isEvaluating}
-                feedback={lastFeedback?.text}
-                status={lastFeedback?.status}
+                feedback={isViewingPast ? undefined : lastFeedback?.text}
+                status={isViewingPast ? undefined : lastFeedback?.status}
               />
             </main>
 
