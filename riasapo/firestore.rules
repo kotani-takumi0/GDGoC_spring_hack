@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザープロフィール: 本人のみ読み書き可能
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // セッション: 本人のみ読み書き可能
+    match /sessions/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Q&Aログ: 全ユーザー読み取り可、誰でも作成可（匿名含む）
+    match /qa_logs/{docId} {
+      allow read: if true;
+      allow create: if true;
+    }
+
+    // 理解度評価: 本人のみ読み書き可能
+    match /evaluations/{uid}/results/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // つまずき統計: 全ユーザー読み取り可能（書き込みはサーバーのみ）
+    match /stumble_stats/{levelId} {
+      allow read: if true;
+    }
+
+    // NotebookLM連携: 本人のみ読み書き可能
+    match /notebooks/{uid}/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
