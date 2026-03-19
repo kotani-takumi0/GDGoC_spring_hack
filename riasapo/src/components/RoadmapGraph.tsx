@@ -54,7 +54,7 @@ function computeDepths(
   const roots = nodes.filter((n) => !targets.has(n.id));
   const queue = roots.map((r) => ({ id: r.id, depth: 0 }));
 
-  // BFSで最大depth（最長パス）を使う → conceptノードがfeatureより確実に下に来る
+  // BFSで最大depth（最長パス）を使う
   while (queue.length > 0) {
     const { id, depth } = queue.shift()!;
     const current = depths.get(id) ?? -1;
@@ -64,6 +64,17 @@ function computeDepths(
       queue.push({ id: child, depth: depth + 1 });
     }
   }
+
+  // nodeTypeに基づく最低depth制約: app=0, feature=1, concept=2
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  for (const [id, depth] of depths.entries()) {
+    const node = nodeMap.get(id);
+    if (!node) continue;
+    const nt = node.nodeType;
+    if (nt === 'feature' && depth < 1) depths.set(id, 1);
+    if (nt !== 'app' && nt !== 'feature' && depth < 2) depths.set(id, 2);
+  }
+
   return depths;
 }
 
@@ -139,7 +150,7 @@ function computeForceLayout(
       "y",
       forceY<ForceNode>()
         .y((d) => d.depth * 200)
-        .strength(0.25)
+        .strength(0.8)
     )
     .force("x", forceX(0).strength(0.05))
     .stop();
