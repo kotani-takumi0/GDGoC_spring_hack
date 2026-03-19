@@ -64,7 +64,7 @@
   - _Requirements: 4.2, 4.4, 4.5_
 
 - [ ] 5. Firestore データ永続化
-- [ ] 5.1 Firestoreサーバーサイドクライアント（firebase-admin）を初期化し、コレクション操作のサービスモジュールを実装する
+- [x] 5.1 Firestoreサーバーサイドクライアント（firebase-admin）を初期化し、コレクション操作のサービスモジュールを実装する
   - `firebase-admin`パッケージをインストールする
   - Cloud RunではADC（Application Default Credentials）で自動認証する初期化モジュールを作成する
   - `users`, `sessions`, `qa_logs`, `evaluations`コレクションのCRUD操作を実装する
