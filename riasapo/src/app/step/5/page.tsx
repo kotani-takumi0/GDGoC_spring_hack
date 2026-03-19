@@ -39,30 +39,26 @@ interface GeneratedFile {
 }
 
 // =============================================================================
-// 先輩の質問バリエーション（コードベース）
+// AI質問生成
 // =============================================================================
 
-type QuestionTemplate = (snippet: string) => string;
-
-const QUESTION_TEMPLATES: readonly QuestionTemplate[] = [
-  (title) => `右のコードの中から「${title}」に関係する部分を探してみて。\n見つけたら、その部分が何をしているか説明して。`,
-  (title) => `右のコード全体を見て、「${title}」がどこでどう使われてるか分かる？\n後輩に教えるつもりで説明してみて。`,
-  (title) => `右のコードから「${title}」の部分を見つけて。\nもしそこを消したら、アプリはどうなると思う？`,
-  (title) => `右のコードをヒントに答えて。\n「${title}」がこのアプリで果たしている役割を、ユーザー目線で説明してみ。`,
-  (title) => `右のコードの中に「${title}」の実例があるよ。\nプログラミング知らない友達に、この部分を何に例えて説明する？`,
-  (title) => `右のコードをよく見て。\n「${title}」の部分、別の書き方もできると思う？なんでこう書いてるのか考えを聞かせて。`,
-  (title) => `右のコードで「${title}」がどう実装されてるか確認して。\nこの仕組みがないと、開発者は何に困ると思う？`,
-];
-
-const FALLBACK_TEMPLATES: readonly ((title: string) => string)[] = [
-  (title) => `右のコードを見ながら、「${title}」がどこで使われてるか探してみて。\n見つけたら、何をしているか説明して。`,
-  (title) => `右のコードの中で「${title}」に当たる部分はどこ？\nそれがなかったらアプリはどうなるか教えて。`,
-  (title) => `右のコードをヒントに、「${title}」を初心者に教えるとしたら\nどう説明する？`,
-];
-
-function getQuestionForNode(title: string, index: number): string {
-  const template = QUESTION_TEMPLATES[index % QUESTION_TEMPLATES.length];
-  return template(title);
+async function fetchQuestion(
+  conceptTitle: string,
+  code: string,
+  experienceLevel: string
+): Promise<string> {
+  try {
+    const res = await fetch('/api/generate-question', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conceptTitle, code, experienceLevel }),
+    });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    return data.question ?? '右のコードを見て、この概念について説明してみて。';
+  } catch {
+    return `右のコードを見て、「${conceptTitle}」に関係する部分を見つけて説明してみて。`;
+  }
 }
 
 // =============================================================================
@@ -160,6 +156,8 @@ function Step5Content() {
     status: "green" | "yellow" | "red";
     text: string;
   } | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
 
   const answeredCount = useMemo(
     () => Object.values(nodeStatuses).filter((s) => s !== "default").length,
@@ -169,9 +167,21 @@ function Step5Content() {
   const isAllCompleted = answeredCount === nodes.length;
   const currentNode = nodes[currentNodeIndex];
   const currentSnippet = currentNode ? (codeSnippetMap[currentNode.id] ?? "") : "";
-  const currentQuestion = currentNode
-    ? getQuestionForNode(currentNode.title, currentNodeIndex)
-    : "";
+
+  // 概念が変わるたびにAIに質問を生成させる
+  useEffect(() => {
+    if (!currentNode || isAllCompleted) return;
+
+    const allCode = generatedFiles.map((f) => `// --- ${f.filename} ---\n${f.code}`).join('\n\n');
+
+    setIsLoadingQuestion(true);
+    setCurrentQuestion("");
+
+    fetchQuestion(currentNode.title, allCode, level).then((q) => {
+      setCurrentQuestion(q);
+      setIsLoadingQuestion(false);
+    });
+  }, [currentNodeIndex, currentNode, generatedFiles, level, isAllCompleted]);
 
   const handleSubmit = useCallback(
     async (answer: string) => {
@@ -303,6 +313,7 @@ function Step5Content() {
                 nodeTitle={currentNode?.title ?? ""}
                 codeSnippet={currentSnippet}
                 questionText={currentQuestion}
+                isLoadingQuestion={isLoadingQuestion}
                 onSubmit={handleSubmit}
                 isEvaluating={isEvaluating}
                 feedback={lastFeedback?.text}
