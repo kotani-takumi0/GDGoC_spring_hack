@@ -269,7 +269,7 @@ export default function AnswerPanel({
           />
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={answer.trim().length === 0 || isEvaluating}
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer disabled:shadow-none"
           >
