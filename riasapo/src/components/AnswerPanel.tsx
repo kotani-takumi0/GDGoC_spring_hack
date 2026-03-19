@@ -102,45 +102,43 @@ export default function AnswerPanel({
 }: AnswerPanelProps) {
   const [answer, setAnswer] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [prevNodeTitle, setPrevNodeTitle] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const addedQuestionsRef = useRef<Set<string>>(new Set());
 
-  // 質問テキストが更新されたらチャットに追加
+  // 質問テキストが更新されたらチャットに追加（重複防止）
   useEffect(() => {
     if (!questionText || isLoadingQuestion) return;
-    setMessages((prev) => {
-      const lastMsg = prev[prev.length - 1];
-      if (lastMsg?.role === "senpai" && lastMsg.text === questionText) return prev;
-      return [
-        ...prev,
-        {
-          id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          role: "senpai",
-          text: questionText,
-        },
-      ];
-    });
+    if (addedQuestionsRef.current.has(questionText)) return;
+    addedQuestionsRef.current.add(questionText);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: "senpai",
+        text: questionText,
+      },
+    ]);
   }, [questionText, isLoadingQuestion]);
 
   // フィードバックが来たら先輩のリアクションを追加
+  const addedFeedbacksRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (status && feedback) {
+      const key = `${status}:${feedback}`;
+      if (addedFeedbacksRef.current.has(key)) return;
+      addedFeedbacksRef.current.add(key);
+
       const reaction = getRandomReaction(status);
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.role === "senpai" && lastMsg.status === status && lastMsg.text.includes(feedback)) {
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            id: `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: "senpai",
-            text: `${reaction}\n\n${feedback}`,
-            status,
-          },
-        ];
-      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          role: "senpai",
+          text: `${reaction}\n\n${feedback}`,
+          status,
+        },
+      ]);
     }
   }, [status, feedback]);
 
