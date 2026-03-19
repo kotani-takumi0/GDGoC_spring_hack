@@ -53,7 +53,9 @@ interface AnswerPanelProps {
   readonly codeSnippet: string;
   readonly questionText: string;
   readonly isLoadingQuestion?: boolean;
+  readonly readOnly?: boolean;
   readonly onSubmit: (answer: string) => void;
+  readonly onBack?: () => void;
   readonly isEvaluating: boolean;
   readonly feedback?: string;
   readonly status?: "green" | "yellow" | "red";
@@ -95,27 +97,31 @@ export default function AnswerPanel({
   codeSnippet,
   questionText,
   isLoadingQuestion,
+  readOnly,
   onSubmit,
+  onBack,
   isEvaluating,
   feedback,
   status,
 }: AnswerPanelProps) {
   const [answer, setAnswer] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 概念ごとのチャット履歴を保持
+  const historyMapRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const addedQuestionsRef = useRef<Set<string>>(new Set());
-  const prevNodeTitleRef = useRef<string>("");
 
-  // 概念が変わったらチャット履歴をリセット
-  useEffect(() => {
-    if (nodeTitle && nodeTitle !== prevNodeTitleRef.current) {
-      if (prevNodeTitleRef.current !== "") {
-        setMessages([]);
-        addedQuestionsRef.current.clear();
-      }
-      prevNodeTitleRef.current = nodeTitle;
-    }
+  // 現在の概念のメッセージを取得
+  const currentMessages = historyMapRef.current.get(nodeTitle) ?? [];
+
+  // メッセージ更新用のヘルパー
+  const updateMessages = useCallback((updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+    const current = historyMapRef.current.get(nodeTitle) ?? [];
+    const updated = updater(current);
+    historyMapRef.current.set(nodeTitle, updated);
+    // 再レンダリングのためにstateを更新
+    setMessagesVersion((v) => v + 1);
   }, [nodeTitle]);
+  const [, setMessagesVersion] = useState(0);
 
   // 質問テキストが更新されたらチャットに追加（重複防止）
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function AnswerPanel({
     if (addedQuestionsRef.current.has(questionText)) return;
     addedQuestionsRef.current.add(questionText);
 
-    setMessages((prev) => [
+    updateMessages((prev) => [
       ...prev,
       {
         id: `senpai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -131,7 +137,7 @@ export default function AnswerPanel({
         text: questionText,
       },
     ]);
-  }, [questionText, isLoadingQuestion]);
+  }, [questionText, isLoadingQuestion, updateMessages]);
 
   // フィードバックが来たら先輩のリアクションを追加
   const addedFeedbacksRef = useRef<Set<string>>(new Set());
@@ -142,7 +148,7 @@ export default function AnswerPanel({
       addedFeedbacksRef.current.add(key);
 
       const reaction = getRandomReaction(status);
-      setMessages((prev) => [
+      updateMessages((prev) => [
         ...prev,
         {
           id: `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -152,21 +158,21 @@ export default function AnswerPanel({
         },
       ]);
     }
-  }, [status, feedback]);
+  }, [status, feedback, updateMessages]);
 
   // 自動スクロール
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isEvaluating]);
+  }, [currentMessages, isEvaluating]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = answer.trim();
     if (trimmed.length === 0 || isEvaluating) return;
 
     // ユーザーの回答をチャットに追加
-    setMessages((prev) => [
+    updateMessages((prev) => [
       ...prev,
       {
         id: `user-${Date.now()}`,
@@ -177,7 +183,7 @@ export default function AnswerPanel({
 
     onSubmit(trimmed);
     setAnswer("");
-  }, [answer, isEvaluating, onSubmit]);
+  }, [answer, isEvaluating, onSubmit, updateMessages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -202,7 +208,7 @@ export default function AnswerPanel({
         className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar"
       >
         <AnimatePresence>
-          {messages.map((msg) => (
+          {currentMessages.map((msg) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 10 }}
@@ -281,27 +287,37 @@ export default function AnswerPanel({
         )}
       </div>
 
-      {/* 入力欄 */}
+      {/* 入力欄 or 戻るボタン */}
       <div className={`flex-shrink-0 border-t ${statusBorder} bg-white/[0.02] px-4 py-3`}>
-        <div className="flex gap-2 items-end">
-          <textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isLoadingQuestion ? "先輩が次の質問を考え中..." : "自分の言葉で説明してみよう..."}
-            rows={2}
-            disabled={isEvaluating || isLoadingQuestion}
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-gray-500 resize-none focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-colors disabled:opacity-40"
-          />
+        {readOnly ? (
           <button
             type="button"
-            onClick={() => handleSubmit()}
-            disabled={answer.trim().length === 0 || isEvaluating || isLoadingQuestion}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer disabled:shadow-none"
+            onClick={onBack}
+            className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-sm text-gray-300 hover:bg-white/[0.1] transition-colors cursor-pointer"
           >
-            <Send className="w-4 h-4" />
+            現在の問題に戻る
           </button>
-        </div>
+        ) : (
+          <div className="flex gap-2 items-end">
+            <textarea
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isLoadingQuestion ? "先輩が次の質問を考え中..." : "自分の言葉で説明してみよう..."}
+              rows={2}
+              disabled={isEvaluating || isLoadingQuestion}
+              className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-gray-500 resize-none focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-colors disabled:opacity-40"
+            />
+            <button
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={answer.trim().length === 0 || isEvaluating || isLoadingQuestion}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer disabled:shadow-none"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
