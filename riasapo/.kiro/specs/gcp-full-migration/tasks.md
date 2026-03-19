@@ -208,13 +208,13 @@
 ## Phase 7: 統合・検証
 
 - [ ] 12. 全機能統合テスト
-- [ ] 12.1 GenAIClient（Vertex AI）の単体テストを作成する
+- [x] 12.1 GenAIClient（Vertex AI）の単体テストを作成する
   - SDK呼び出しのモックを使用して5つのメソッドのResult型返却を検証する
   - リトライロジック（指数バックオフ）の動作を検証する
   - Grounding・Code Execution有効時のレスポンス解析を検証する
   - _Requirements: 2.3, 2.4, 2.5_
 
-- [ ] 12.2 (P) FirestoreService・EmbeddingServiceの単体テストを作成する
+- [x] 12.2 (P) FirestoreService・EmbeddingServiceの単体テストを作成する
   - Firestoreエミュレータを使用してCRUD操作を検証する
   - ベクトル保存・`findNearest()`検索の動作を検証する
   - セキュリティルール（UID一致チェック）の検証を含める
