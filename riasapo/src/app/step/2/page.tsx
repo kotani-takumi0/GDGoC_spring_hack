@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Layers, BookOpen, Fingerprint, ChevronRight } from "lucide-react";
 import ConceptQA from "@/components/ConceptQA";
+import StumbleWarning from "@/components/StumbleWarning";
 
 import StepIndicator from "@/components/StepIndicator";
 import RoadmapGraph from "@/components/RoadmapGraph";
@@ -248,6 +249,9 @@ function NodeDetail({
           </motion.div>
         )}
       </div>
+
+      {/* つまずき警告 */}
+      <StumbleWarning nodeId={node.id} experienceLevel={experienceLevel} />
 
       {/* AI Q&A */}
       <ConceptQA

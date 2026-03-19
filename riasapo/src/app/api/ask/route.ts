@@ -3,6 +3,7 @@ import { geminiClient, callWithGrounding } from "@/lib/gemini-client";
 import type { Citation } from "@/lib/gemini-client";
 import { embedDocument, embedQuery } from "@/lib/embedding-service";
 import { saveQALog, findSimilarQA } from "@/lib/firestore-service";
+import { logger } from "@/lib/logger";
 import type { ConceptNodeData, ExperienceLevel } from "@/types";
 
 interface AskRequest {
@@ -29,6 +30,8 @@ export async function POST(request: Request) {
   if (!question?.trim()) {
     return NextResponse.json({ error: "質問が空です" }, { status: 400 });
   }
+
+  const startTime = Date.now();
 
   // 類似Q&A検索（ベクトルインデックスが利用可能な場合）
   let similarQAs: readonly { readonly question: string; readonly answer: string }[] = [];
@@ -119,6 +122,8 @@ ${question}
   } catch {
     // ログ保存失敗は無視
   }
+
+  logger.apiMetric('/api/ask', Date.now() - startTime, 200);
 
   return NextResponse.json({
     answer,
