@@ -135,21 +135,21 @@ function computeForceLayout(
       "link",
       forceLink<ForceNode, SimulationLinkDatum<ForceNode>>(simLinks)
         .id((d) => d.id)
-        .distance(160)
+        .distance(250)
         .strength(0.7)
     )
-    .force("charge", forceManyBody().strength(-600))
+    .force("charge", forceManyBody().strength(-1200))
     .force("center", forceCenter(0, 0))
     .force(
       "collide",
       forceCollide<ForceNode>()
-        .radius((d) => getNodeRadius(d.nodeType) + 20)
+        .radius((d) => getNodeRadius(d.nodeType) + 50)
         .strength(1)
     )
     .force(
       "y",
       forceY<ForceNode>()
-        .y((d) => d.depth * 200)
+        .y((d) => d.depth * 280)
         .strength(0.8)
     )
     .force("x", forceX(0).strength(0.05))
