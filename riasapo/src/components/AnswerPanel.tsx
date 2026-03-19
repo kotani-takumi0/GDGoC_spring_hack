@@ -79,6 +79,17 @@ export default function AnswerPanel({
 
   const messages = historyMapRef.current.get(nodeTitle) ?? [];
 
+  // 概念切り替え時にスクロールリセット
+  const prevNodeRef = useRef<string>("");
+  useEffect(() => {
+    if (nodeTitle !== prevNodeRef.current) {
+      prevNodeRef.current = nodeTitle;
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+      }
+    }
+  }, [nodeTitle]);
+
   const updateMessages = useCallback((updater: (prev: ChatMessage[]) => ChatMessage[]) => {
     const current = historyMapRef.current.get(nodeTitle) ?? [];
     historyMapRef.current.set(nodeTitle, updater(current));
@@ -135,8 +146,8 @@ export default function AnswerPanel({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      {/* チャットエリア */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
+      {/* チャットエリア（nodeTitleでキーを変えてリマウント） */}
+      <div key={nodeTitle} ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
         <AnimatePresence>
           {messages.map((msg) => (
             <motion.div
