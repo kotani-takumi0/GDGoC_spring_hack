@@ -6,6 +6,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import StepIndicator from "@/components/StepIndicator";
 import AnswerPanel from "@/components/AnswerPanel";
+import { useAuth } from "@/components/AuthProvider";
 import scenarioData from "@/data/scenarios/todo-app.json";
 import type {
   ScenarioDefinition,
@@ -154,6 +155,7 @@ const STATUS_CONFIG: Record<NodeStatus, { dot: string; label: string }> = {
 
 function Step5Content() {
   const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
   const level = (searchParams.get("level") ?? "complete-beginner") as ExperienceLevel;
 
   const scenario = scenarioData as unknown as ScenarioDefinition;
@@ -268,7 +270,10 @@ function Step5Content() {
             codeSnippet: currentSnippet || `// ${currentNode.title}の例`,
             userAnswer: answer,
             modelAnswer: currentModelAnswer,
+            scenarioId: "todo-app",
             experienceLevel: level,
+            userId: authState.user?.uid ?? null,
+            question: currentQuestion,
           }),
         });
 

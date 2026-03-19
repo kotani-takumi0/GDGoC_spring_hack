@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Send, Loader2, Users, ExternalLink } from "lucide-react";
+import { MessageCircle, Send, Loader2, ExternalLink } from "lucide-react";
 
 // =============================================================================
 // 型定義
@@ -73,7 +73,6 @@ export default function ConceptQA({
   const [history, setHistory] = useState<QAEntry[]>([]);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
-  const [similarQAs, setSimilarQAs] = useState<readonly { readonly question: string; readonly answer: string }[]>([]);
   const [citations, setCitations] = useState<readonly { readonly title: string; readonly url: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -113,13 +112,6 @@ export default function ConceptQA({
 
       const data = await response.json();
       const answer = data.answer ?? data.error ?? "回答を取得できませんでした";
-
-      // 類似Q&Aを更新
-      if (data.similarQAs && Array.isArray(data.similarQAs)) {
-        setSimilarQAs(data.similarQAs);
-      } else {
-        setSimilarQAs([]);
-      }
 
       // 引用を更新
       if (data.citations && Array.isArray(data.citations)) {
@@ -220,24 +212,6 @@ export default function ConceptQA({
               >
                 {c.title}
               </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 他の学習者の質問 */}
-      {similarQAs.length > 0 && (
-        <div className="mb-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
-          <h5 className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-            <Users className="w-3 h-3" />
-            他の学習者の質問
-          </h5>
-          <div className="space-y-2">
-            {similarQAs.map((qa, i) => (
-              <div key={i} className="text-[11px] leading-relaxed">
-                <p className="text-amber-200/70">Q: {qa.question}</p>
-                <p className="text-gray-400 mt-0.5">A: {qa.answer.length > 100 ? `${qa.answer.slice(0, 100)}...` : qa.answer}</p>
-              </div>
             ))}
           </div>
         </div>

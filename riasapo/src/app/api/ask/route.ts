@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { geminiClient, callWithGrounding } from "@/lib/gemini-client";
 import type { Citation } from "@/lib/gemini-client";
-import { embedDocument, embedQuery } from "@/lib/embedding-service";
-import { saveQALog, findSimilarQA } from "@/lib/firestore-service";
 import { logger } from "@/lib/logger";
-import type { ConceptNodeData, ExperienceLevel } from "@/types";
+import type { ConceptNodeData } from "@/types";
 
 interface AskRequest {
   readonly nodeId: string;
@@ -12,9 +10,7 @@ interface AskRequest {
   readonly nodeSubtitle: string;
   readonly question: string;
   readonly scenarioTitle: string;
-  readonly scenarioId?: string;
   readonly experienceLevel: string;
-  readonly userId?: string | null;
 }
 
 export async function POST(request: Request) {
@@ -25,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { nodeId, nodeTitle, nodeSubtitle, question, scenarioTitle, scenarioId, experienceLevel, userId } = body;
+  const { nodeId, nodeTitle, nodeSubtitle, question, scenarioTitle, experienceLevel } = body;
 
   if (!question?.trim()) {
     return NextResponse.json({ error: "質問が空です" }, { status: 400 });
@@ -33,33 +29,11 @@ export async function POST(request: Request) {
 
   const startTime = Date.now();
 
-  // 類似Q&A検索（ベクトルインデックスが利用可能な場合）
-  let similarQAs: readonly { readonly question: string; readonly answer: string }[] = [];
-  try {
-    const queryVectorResult = await embedQuery(question);
-    if (queryVectorResult.success) {
-      const similarResult = await findSimilarQA(queryVectorResult.data, nodeId, 3);
-      if (similarResult.success && similarResult.data.length > 0) {
-        similarQAs = similarResult.data.map((qa) => ({
-          question: qa.question,
-          answer: qa.answer,
-        }));
-      }
-    }
-  } catch (e) {
-    console.error('[ask] vector search error:', e);
-  }
-
   const levelLabel: Record<string, string> = {
     "complete-beginner": "プログラミング完全初心者",
     "python-experienced": "Python経験者",
     "other-language-experienced": "他言語経験者",
   };
-
-  // 類似Q&Aがあればコンテキストに追加
-  const similarContext = similarQAs.length > 0
-    ? `\n\n## 過去の類似質問（参考）\n${similarQAs.map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`).join('\n')}`
-    : '';
 
   const prompt = `あなたはプログラミング学習支援AIです。
 以下の概念について、ユーザーからの質問に答えてください。
@@ -68,7 +42,7 @@ export async function POST(request: Request) {
 シナリオ: ${scenarioTitle}
 概念: ${nodeTitle}
 概念の説明: ${nodeSubtitle}
-ユーザーの経験レベル: ${levelLabel[experienceLevel] ?? experienceLevel}${similarContext}
+ユーザーの経験レベル: ${levelLabel[experienceLevel] ?? experienceLevel}
 
 ## ユーザーの質問
 ${question}
@@ -94,7 +68,6 @@ ${question}
     answer = groundedResult.data.answer;
     citations = groundedResult.data.citations;
   } else {
-    // Groundingが失敗した場合は通常のGemini応答にフォールバック
     const fallbackResult = await geminiClient.askAboutConcept(node, question, prompt);
     if (!fallbackResult.success) {
       return NextResponse.json(
@@ -105,29 +78,10 @@ ${question}
     answer = fallbackResult.data;
   }
 
-  // Q&Aログをベクトル付きでFirestoreに保存（非同期・失敗しても回答は返す）
-  try {
-    const docVectorResult = await embedDocument(`${question} ${answer}`);
-    const embedding = docVectorResult.success ? [...docVectorResult.data] : undefined;
-
-    await saveQALog({
-      userId: userId ?? null,
-      nodeId,
-      scenarioId: scenarioId ?? scenarioTitle,
-      experienceLevel: experienceLevel as ExperienceLevel,
-      question,
-      answer,
-      embedding,
-    });
-  } catch (e) {
-    console.error('[ask] save error:', e);
-  }
-
   logger.apiMetric('/api/ask', Date.now() - startTime, 200);
 
   return NextResponse.json({
     answer,
     citations: citations.length > 0 ? citations : undefined,
-    similarQAs: similarQAs.length > 0 ? similarQAs : undefined,
   });
 }
