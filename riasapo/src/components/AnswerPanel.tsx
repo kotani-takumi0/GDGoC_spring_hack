@@ -145,9 +145,9 @@ export default function AnswerPanel({
   const hasConversation = messages.length > 1; // 質問+回答が1往復以上
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      {/* チャットエリア（nodeTitleでキーを変えてリマウント） */}
-      <div key={nodeTitle} ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
+    <div className="relative h-full">
+      {/* チャットエリア — 下部の入力欄分のパディングを確保 */}
+      <div ref={scrollRef} className="absolute inset-0 bottom-[120px] overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
         <AnimatePresence>
           {messages.map((msg) => (
             <motion.div
@@ -196,8 +196,8 @@ export default function AnswerPanel({
         )}
       </div>
 
-      {/* 下部: 入力欄 + 次へボタン */}
-      <div className="flex-shrink-0 border-t border-white/10 bg-white/[0.02] px-4 py-3">
+      {/* 下部: 入力欄 + 次へボタン（絶対配置で下部固定） */}
+      <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 bg-[#0A0A0B]/95 backdrop-blur-sm px-4 py-3">
         {readOnly ? (
           <button
             type="button"
