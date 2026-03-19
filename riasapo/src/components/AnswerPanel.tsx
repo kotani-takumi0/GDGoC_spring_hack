@@ -134,7 +134,7 @@ export default function AnswerPanel({
   const hasConversation = messages.length > 1; // 質問+回答が1往復以上
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* チャットエリア */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
         <AnimatePresence>
