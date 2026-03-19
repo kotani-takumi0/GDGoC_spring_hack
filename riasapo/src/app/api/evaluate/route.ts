@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 
 import { geminiClient } from '@/lib/gemini-client';
+import { logger } from '@/lib/logger';
 import type { ConceptNodeData, ExperienceLevel } from '@/types';
 
 // =============================================================================
@@ -137,6 +138,7 @@ export async function POST(
   };
 
   // Gemini APIで理解度評価を実行
+  const startTime = Date.now();
   try {
     const result = await geminiClient.evaluateUnderstanding(
       node,
@@ -145,6 +147,7 @@ export async function POST(
     );
 
     if (!result.success) {
+      logger.apiMetric('/api/evaluate', Date.now() - startTime, 502);
       return NextResponse.json(
         { error: `Gemini API呼び出しに失敗しました: ${result.error.message}` },
         { status: 502 }
@@ -157,6 +160,7 @@ export async function POST(
       feedback: result.data.feedback,
     };
 
+    logger.apiMetric('/api/evaluate', Date.now() - startTime, 200);
     return NextResponse.json(response);
   } catch (error) {
     const message =
